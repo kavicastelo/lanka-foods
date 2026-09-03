@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { UtensilsCrossed, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { authApi } from "@/api/authApi";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { Button } from "@/components/ui/button";
 
 export default function SignIn() {
-    const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -19,7 +18,7 @@ export default function SignIn() {
         setError("");
         setLoading(true);
         try {
-            await base44.auth.loginViaEmailPassword(email, password);
+            await authApi.login(email, password);
             window.location.href = returnTo;
         } catch (err) {
             setError(err.message || "Invalid email or password");
@@ -30,7 +29,7 @@ export default function SignIn() {
     return (
         <div className="grid min-h-screen lg:grid-cols-2">
             <div className="relative hidden lg:block">
-                <img src="https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/2c94c5931_generated_image.png" alt="" className="h-full w-full object-cover" />
+                <img src="https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=1200&q=80" alt="" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/40" />
                 <div className="absolute bottom-0 p-10 text-white">
                     <div className="flex items-center gap-2">

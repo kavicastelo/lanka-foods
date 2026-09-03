@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { UtensilsCrossed, CheckCircle2, ArrowRight, Store } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle2, ArrowRight, Store } from "lucide-react";
 import { useSubmitApplication } from "@/hooks/useMarketplaceData";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { cities, businessTypes } from "@/lib/constants";
 
 export default function BecomePartner() {
-    const navigate = useNavigate();
     const { user } = useMarketplaceUser();
     const submitMutation = useSubmitApplication();
     const [form, setForm] = useState({

@@ -1,0 +1,106 @@
+import { config } from '../../config/index.js';
+import { User, comparePassword, hashPassword, type IUser } from '../../models/user.model.js';
+import type { LoginInput, RegisterInput } from './auth.schemas.js';
+
+export class AuthService {
+  /**
+   * Registers a new customer account.
+   * Public registration ALWAYS defaults to CUSTOMER role to prevent privilege escalation attacks.
+   */
+  static async registerUser(input: RegisterInput): Promise<IUser> {
+    const normalizedEmail = input.email.toLowerCase().trim();
+
+    // Duplicate account check
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      const error = new Error('An account with this email already exists.') as Error & { statusCode?: number };
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const passwordHash = await hashPassword(input.password);
+
+    const newUser = await User.create({
+      email: normalizedEmail,
+      fullName: input.fullName.trim(),
+      phone: input.phone?.trim() || '',
+      passwordHash,
+      role: 'CUSTOMER', // Strict public role limit
+      isActive: true,
+    });
+
+    return newUser;
+  }
+
+  /**
+   * Authenticates a user with email and password credentials.
+   * Uses generic error messages to prevent account enumeration attacks.
+   */
+  static async loginUser(input: LoginInput): Promise<IUser> {
+    const normalizedEmail = input.email.toLowerCase().trim();
+
+    // Select passwordHash explicitly since select: false is set in schema
+    const user = await User.findOne({ email: normalizedEmail }).select('+passwordHash');
+
+    if (!user) {
+      const error = new Error('Invalid email or password.') as Error & { statusCode?: number };
+      error.statusCode = 401;
+      throw error;
+    }
+
+    // Account status check
+    if (!user.isActive) {
+      const error = new Error('Account is disabled. Please contact support.') as Error & { statusCode?: number };
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const isPasswordValid = await comparePassword(input.password, user.passwordHash);
+    if (!isPasswordValid) {
+      const error = new Error('Invalid email or password.') as Error & { statusCode?: number };
+      error.statusCode = 401;
+      throw error;
+    }
+
+    return user;
+  }
+
+  /**
+   * Fetches current authenticated user profile from database.
+   */
+  static async getAuthenticatedProfile(userId: string): Promise<IUser> {
+    const user = await User.findById(userId);
+    if (!user || !user.isActive) {
+      const error = new Error('User account not found or disabled.') as Error & { statusCode?: number };
+      error.statusCode = 401;
+      throw error;
+    }
+
+    return user;
+  }
+
+  /**
+   * Safe SuperAdmin Bootstrap helper for development and testing.
+   */
+  static async seedSuperAdmin(): Promise<IUser | null> {
+    if (!config.SUPERADMIN_EMAIL || !config.SUPERADMIN_PASSWORD) {
+      return null;
+    }
+
+    const normalizedEmail = config.SUPERADMIN_EMAIL.toLowerCase().trim();
+    let admin = await User.findOne({ email: normalizedEmail });
+
+    if (!admin) {
+      const passwordHash = await hashPassword(config.SUPERADMIN_PASSWORD);
+      admin = await User.create({
+        email: normalizedEmail,
+        fullName: 'System Super Admin',
+        role: 'SUPER_ADMIN',
+        passwordHash,
+        isActive: true,
+      });
+    }
+
+    return admin;
+  }
+}

@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { UtensilsCrossed, Store, User, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { authApi } from "@/api/authApi";
+import { applicationsApi } from "@/api/applicationsApi";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function Register() {
     const [tab, setTab] = useState("customer");
-    const [step, setStep] = useState("form"); // form | otp | done
+    const [step, setStep] = useState("form"); // form | done
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [otp, setOtp] = useState("");
     const [appSubmitted, setAppSubmitted] = useState(false);
 
     const [c, setC] = useState({ name: "", email: "", phone: "", password: "" });
@@ -25,8 +25,14 @@ export default function Register() {
         setError("");
         setLoading(true);
         try {
-            await base44.auth.register({ email: c.email, password: c.password });
-            setStep("otp");
+            await authApi.register({
+                email: c.email,
+                password: c.password,
+                fullName: c.name,
+                phone: c.phone,
+                role: 'CUSTOMER',
+            });
+            window.location.href = returnTo;
         } catch (err) {
             setError(err.message || "Registration failed");
         } finally {
@@ -39,65 +45,36 @@ export default function Register() {
         setError("");
         setLoading(true);
         try {
-            await base44.auth.register({ email: r.email, password: r.password });
-            setStep("otp");
-        } catch (err) {
-            setError(err.message || "Registration failed");
-        } finally {
-            setLoading(false);
-        }
-    };
+            // Register user as Customer first, then submit partner application
+            await authApi.register({
+                email: r.email,
+                password: r.password,
+                fullName: r.owner,
+                phone: r.phone,
+                role: 'CUSTOMER',
+            });
 
-    const verifyOtp = async (e) => {
-        e.preventDefault();
-        setError("");
-        setLoading(true);
-        try {
-            const result = await base44.auth.verifyOtp({ email: tab === "customer" ? c.email : r.email, otpCode: otp });
-            const accessToken = result.access_token || result.accessToken;
-            base44.auth.setToken(accessToken);
+            await applicationsApi.apply({
+                restaurantName: r.name,
+                ownerName: r.owner,
+                email: r.email,
+                phone: r.phone,
+                city: r.city,
+                address: r.address,
+                cuisineType: r.cuisine || "Sri Lankan",
+                description: r.description || "Authentic Sri Lankan food supplier",
+            });
 
-            if (tab === "customer") {
-                // Save profile info (best effort, non-blocking)
-                try {
-                    await base44.auth.updateMe({ full_name: c.name, phone: c.phone });
-                } catch { /* non-critical */ }
-                window.location.href = returnTo;
-            } else {
-                // Restaurant: save profile, then submit application
-                const me = await base44.auth.me();
-                try {
-                    await base44.auth.updateMe({ full_name: r.owner, phone: r.phone });
-                } catch { /* non-critical */ }
-                await base44.entities.RestaurantApplication.create({
-                    business_name: r.name,
-                    owner_name: r.owner,
-                    email: r.email,
-                    phone: r.phone,
-                    city: r.city,
-                    address: r.address,
-                    business_type: "Restaurant",
-                    cuisine: r.cuisine,
-                    description: r.description,
-                    pickup: r.pickup,
-                    delivery: r.delivery,
-                    status: "pending",
-                    submitted_date: new Date().toISOString().slice(0, 10),
-                    applicant_user_id: me.id,
-                });
-                setAppSubmitted(true);
-                setStep("done");
-            }
+            setAppSubmitted(true);
+            setStep("done");
         } catch (err) {
-            setError(err.message || "Verification failed");
+            setError(err.message || "Registration or application failed");
         } finally {
             setLoading(false);
         }
     };
 
     const resendOtp = async () => {
-        const email = tab === "customer" ? c.email : r.email;
-        try { await base44.auth.resendOtp(email); } catch { /* ignore */ }
     };
 
     // --- Done state (restaurant application submitted) ---

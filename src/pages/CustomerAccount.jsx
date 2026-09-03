@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, Heart, Star, User, MapPin, Repeat, ArrowRight } from "lucide-react";
+import { Package, Heart, Star, User, ArrowRight } from "lucide-react";
 import { useMyOrders, useMyReviews, useFavorites, useActiveRestaurants } from "@/hooks/useMarketplaceData";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
-import { base44 } from "@/api/base44Client";
 import StarRating from "@/components/StarRating";
 import RestaurantCard from "@/components/RestaurantCard";
 import { Image } from "@/components/ui/image";
@@ -47,7 +46,7 @@ export default function CustomerAccount() {
             setFavMenuItems([]);
             return;
         }
-        Promise.all(favoriteItems.map((id) => base44.entities.MenuItem.get(id).catch(() => null)))
+        Promise.all(favoriteItems.map((id) => menuApi.getMenuItemById(id).catch(() => null)))
             .then((items) => setFavMenuItems(items.filter(Boolean)));
     }, [favoriteItems.join(",")]);
 

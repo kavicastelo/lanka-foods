@@ -3,7 +3,6 @@ import { X, Plus, Minus, Leaf, Fish } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { useMarketplace } from "@/context/MarketplaceContext";
-import StarRating from "@/components/StarRating";
 
 export default function FoodItemModal({ item, restaurant, onClose }) {
     const { addToCart } = useMarketplace();

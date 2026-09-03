@@ -4,7 +4,7 @@ import { ShoppingBag, Heart, Search, Menu, X, UtensilsCrossed, LogOut, LayoutDas
 import { useMarketplace } from "@/context/MarketplaceContext";
 import { useMarketplaceUser, roleHome } from "@/lib/marketplaceAuth";
 import { useFavorites } from "@/hooks/useMarketplaceData";
-import { base44 } from "@/api/base44Client";
+import { authApi } from "@/api/authApi";
 import { cn } from "@/lib/utils";
 
 const guestLinks = [
@@ -32,7 +32,8 @@ export default function Navbar() {
     };
 
     const handleLogout = () => {
-        base44.auth.logout("/");
+        authApi.logout();
+        window.location.href = "/";
     };
 
     return (

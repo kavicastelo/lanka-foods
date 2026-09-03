@@ -1,14 +1,13 @@
-// Static configuration constants — not business data.
-// These are UI/config constants, not database entities.
+// Static configuration constants — UI/config constants.
 
 export const IMG = {
-    hero: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/2c94c5931_generated_image.png",
-    riceCurry: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/3116b6e28_generated_image.png",
-    kottu: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/2e4787aa4_generated_image.png",
-    hoppers: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/37217b1de_generated_image.png",
-    shortEats: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/8b27c4557_generated_image.png",
-    biriyani: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/d145b30dd_generated_image.png",
-    dessert: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/1fd02b8c3_generated_image.png",
+    hero: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=1200&q=80",
+    riceCurry: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80",
+    kottu: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80",
+    hoppers: "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=800&q=80",
+    shortEats: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80",
+    biriyani: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80",
+    dessert: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80",
 };
 
 export const cities = ["Helsinki", "Espoo", "Vantaa", "Tampere", "Turku", "Oulu"];

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Check, Store, Bike, Calendar, Clock, CreditCard, Smartphone, Banknote, ArrowRight, ArrowLeft } from "lucide-react";
+import { Check, Store, Bike, Clock, CreditCard, Smartphone, Banknote, ArrowRight, ArrowLeft } from "lucide-react";
 import { useMarketplace } from "@/context/MarketplaceContext";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { usePlaceOrder, useRestaurantById } from "@/hooks/useMarketplaceData";

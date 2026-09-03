@@ -2,11 +2,10 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Star, MapPin, Clock, Bike, Store, Heart } from "lucide-react";
 import { useFavorites } from "@/hooks/useMarketplaceData";
-import StarRating from "@/components/StarRating";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
-export default function RestaurantCard({ restaurant, variant = "grid" }) {
+export default function RestaurantCard({ restaurant, variant: _variant = "grid" }) {
     const { favoriteRestaurants, toggleFavoriteRestaurant } = useFavorites();
     const fav = favoriteRestaurants.includes(restaurant.id);
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Check, Star } from "lucide-react";
 import { useOrderById, useCreateReview } from "@/hooks/useMarketplaceData";
-import { base44 } from "@/api/base44Client";
+import { restaurantsApi } from "@/api/restaurantsApi";
 import StarRating from "@/components/StarRating";
 import { cn } from "@/lib/utils";
 
@@ -32,10 +32,11 @@ export default function OrderTracking() {
     const [text, setText] = useState("");
 
     useEffect(() => {
-        if (order?.restaurant_id) {
-            base44.entities.Restaurant.get(order.restaurant_id).then(setRestaurant).catch(() => { });
+        const restId = order?.restaurantId || order?.restaurant_id;
+        if (restId) {
+            restaurantsApi.getRestaurantById(restId).then(setRestaurant).catch(() => { });
         }
-    }, [order?.restaurant_id]);
+    }, [order?.restaurantId, order?.restaurant_id]);
 
     if (isLoading) {
         return <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">Loading order…</div>;
