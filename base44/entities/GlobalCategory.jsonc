@@ -1,0 +1,59 @@
+{
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Category display name e.g. Rice & Curry"
+        },
+        "slug": {
+            "type": "string",
+            "description": "URL-safe slug"
+        },
+        "image_url": {
+            "type": "string",
+            "description": "Category icon/image URL"
+        },
+        "sort_order": {
+            "type": "number",
+            "description": "Display sort order"
+        },
+        "is_active": {
+            "type": "boolean",
+            "description": "Visible in marketplace browse"
+        }
+    },
+    "required": [
+        "name",
+        "slug"
+    ],
+    "name": "GlobalCategory",
+    "type": "object",
+    "rls": {
+        "read": {
+            "$or": [
+                {
+                    "data.is_active": true
+                },
+                {
+                    "user_condition": {
+                        "role": "admin"
+                    }
+                }
+            ]
+        },
+        "create": {
+            "user_condition": {
+                "role": "admin"
+            }
+        },
+        "update": {
+            "user_condition": {
+                "role": "admin"
+            }
+        },
+        "delete": {
+            "user_condition": {
+                "role": "admin"
+            }
+        }
+    }
+}
