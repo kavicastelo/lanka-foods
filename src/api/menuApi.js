@@ -1,28 +1,52 @@
 import { apiClient } from './apiClient';
 
 export const menuApi = {
-  async getMenuItems(restaurantId, params = {}) {
-    const res = await apiClient.get(`/api/restaurants/${restaurantId}/menu-items`, { params });
+  // Public restaurant menu catalog
+  async getPublicMenuBySlug(slug) {
+    const res = await apiClient.get(`/api/restaurants/${slug}/menu`);
     return res.data || res;
   },
 
-  async getMenuItemById(id) {
-    const res = await apiClient.get(`/api/menu-items/${id}`);
+  // Owner Menu Categories
+  async getOwnerMenuCategories() {
+    const res = /** @type {any} */ (await apiClient.get('/api/restaurant/menu-categories'));
+    return res.categories || res.data?.categories || res;
+  },
+
+  async createMenuCategory(data) {
+    const res = /** @type {any} */ (await apiClient.post('/api/restaurant/menu-categories', data));
+    return res.category || res.data?.category || res;
+  },
+
+  async updateMenuCategory(id, data) {
+    const res = /** @type {any} */ (await apiClient.patch(`/api/restaurant/menu-categories/${id}`, data));
+    return res.category || res.data?.category || res;
+  },
+
+  async deleteMenuCategory(id) {
+    const res = /** @type {any} */ (await apiClient.delete(`/api/restaurant/menu-categories/${id}`));
     return res.data || res;
   },
 
-  async createMenuItem(restaurantId, data) {
-    const res = await apiClient.post(`/api/restaurants/${restaurantId}/menu-items`, data);
-    return res.data || res;
+  // Owner Menu Items
+  async getOwnerMenuItems() {
+    const res = /** @type {any} */ (await apiClient.get('/api/restaurant/menu-items'));
+    return res.items || res.data?.items || res;
+  },
+
+  async createMenuItem(data) {
+    console.log(data);
+    const res = /** @type {any} */ (await apiClient.post('/api/restaurant/menu-items', data));
+    return res.item || res.data?.item || res;
   },
 
   async updateMenuItem(id, data) {
-    const res = await apiClient.patch(`/api/menu-items/${id}`, data);
-    return res.data || res;
+    const res = /** @type {any} */ (await apiClient.patch(`/api/restaurant/menu-items/${id}`, data));
+    return res.item || res.data?.item || res;
   },
 
   async deleteMenuItem(id) {
-    const res = await apiClient.delete(`/api/menu-items/${id}`);
+    const res = await apiClient.delete(`/api/restaurant/menu-items/${id}`);
     return res.data || res;
   },
 };

@@ -5,7 +5,7 @@ import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { authApi } from "@/api/authApi";
 import { cn } from "@/lib/utils";
 
-export default function DashboardLayout({ nav, active, onNavigate, title, subtitle, actions, children }) {
+export default function DashboardLayout({ nav, active, onNavigate, title, subtitle = null, actions = null, children = null }) {
     const { user } = useMarketplaceUser();
 
     const handleLogout = () => {
@@ -13,7 +13,7 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
         window.location.href = "/";
     };
 
-    const displayName = user?.full_name || user?.email || "User";
+    const displayName = user?.user?.fullName || user?.user?.email || "User";
 
     return (
         <div className="min-h-screen bg-secondary/30">

@@ -14,7 +14,7 @@ import {
 const FALLBACK_IMAGE_URL =
     "https://static.wixstatic.com/media/12d367_4f26ccd17f8f4e3a8958306ea08c2332~mv2.png"
 
-const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
+const ImageWrapper = /** @type {any} */ (React.forwardRef(/** @param {any} props */ ({ aspectRatio, className, style, children }, ref) => (
     <span
         ref={ref}
         className={cn("inline-block relative", className)}
@@ -22,11 +22,11 @@ const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children
     >
         {children}
     </span>
-))
+)))
 ImageWrapper.displayName = "ImageWrapper"
 
-const ResponsiveImage = React.forwardRef(
-    ({ parsed, fittingType, focalPoint, quality, className, style, aspectRatio, onLoad, ...props }, parentRef) => {
+const ResponsiveImage = /** @type {any} */ (React.forwardRef(
+    /** @param {any} props */ ({ parsed, fittingType, focalPoint, quality, className, style, aspectRatio, onLoad, ...props }, parentRef) => {
         const wrapperRef = React.useRef(null)
         const imgRef = React.useRef(null)
         const size = useSize(wrapperRef)
@@ -104,7 +104,7 @@ const ResponsiveImage = React.forwardRef(
             </ImageWrapper>
         )
     }
-)
+))
 ResponsiveImage.displayName = "ResponsiveImage"
 
 /**
@@ -115,8 +115,8 @@ ResponsiveImage.displayName = "ResponsiveImage"
  * as a plain <img>. Failed transforms retry the original URL; only a broken
  * original swaps to the generic fallback image.
  */
-const Image = React.forwardRef(
-    (
+const Image = /** @type {any} */ (React.forwardRef(
+    /** @param {any} props */ (
         {
             src,
             fittingType = "fill",
@@ -192,7 +192,7 @@ const Image = React.forwardRef(
             />
         )
     }
-)
+))
 Image.displayName = "Image"
 
 export { Image }

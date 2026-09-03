@@ -61,7 +61,8 @@ export default function OrderTracking() {
             {
                 onSuccess: () => setReviewed(true),
                 onError: (err) => {
-                    alert(err?.response?.data?.error || err?.message || "Failed to submit review");
+                    const error = /** @type {any} */ (err);
+                    alert(error?.response?.data?.error || error?.message || "Failed to submit review");
                 },
             }
         );
@@ -155,7 +156,7 @@ export default function OrderTracking() {
                                 {createReviewMutation.isPending ? "Submitting…" : "Submit review"}
                             </button>
                             {createReviewMutation.isError && (
-                                <p className="mt-2 text-sm text-red-600">{createReviewMutation.error?.response?.data?.error || "Failed to submit review"}</p>
+                                <p className="mt-2 text-sm text-red-600">{(/** @type {any} */ (createReviewMutation.error))?.response?.data?.error || "Failed to submit review"}</p>
                             )}
                         </>
                     )}

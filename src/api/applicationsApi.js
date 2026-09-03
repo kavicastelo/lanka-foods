@@ -3,6 +3,7 @@ import { apiClient } from './apiClient';
 export const applicationsApi = {
   async apply(data) {
     const res = await apiClient.post('/api/partner/apply', data);
+    console.log("res", res);
     return res.data || res;
   },
 

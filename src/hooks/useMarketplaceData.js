@@ -135,25 +135,34 @@ export function useRestaurantBySlug(slug) {
     });
 }
 
-export function useRestaurantMenu(restaurantId) {
+export function useRestaurantMenu(slugOrRestaurantId) {
     return useQuery({
-        queryKey: ["restaurantMenu", restaurantId],
+        queryKey: ["restaurantMenu", slugOrRestaurantId],
         queryFn: async () => {
-            if (!restaurantId) return [];
-            const items = await menuApi.getMenuItems(restaurantId);
-            const globalCats = await categoriesApi.getCategories().catch(() => []);
-            const categories = globalCats.length ? globalCats : [{ id: 'general', name: 'Main Menu', sortOrder: 1 }];
+            if (!slugOrRestaurantId) return [];
+            let catalog = null;
+            try {
+                catalog = await menuApi.getPublicMenuBySlug(slugOrRestaurantId);
+            } catch (_err) {
+                const ownerCats = await menuApi.getOwnerMenuCategories().catch(() => []);
+                const ownerItems = await menuApi.getOwnerMenuItems().catch(() => []);
+                catalog = {
+                    categories: (ownerCats || []).map((c) => ({
+                        ...c,
+                        items: (ownerItems || []).filter((i) => (i.categoryId || i.category_id) === (c.id || c._id)),
+                    })),
+                };
+            }
 
-            const mappedItems = (Array.isArray(items) ? items : []).map(mapMenuItem);
-
-            return categories.map((c) => ({
+            const categories = catalog?.categories || catalog?.data?.categories || [];
+            return (categories || []).map((c) => ({
                 id: c.id || c._id,
                 name: c.name,
                 description: c.description || "",
-                items: mappedItems.filter((i) => i.categoryId === c.id || i.categoryId === c._id || true),
+                items: (c.items || []).map(mapMenuItem),
             }));
         },
-        enabled: !!restaurantId,
+        enabled: !!slugOrRestaurantId,
     });
 }
 
@@ -189,19 +198,20 @@ export function useFavorites() {
         queryKey: ["favorites", user?.id],
         queryFn: async () => {
             if (!user) return { restaurants: [], items: [] };
-            const favs = await favoritesApi.getFavorites();
-            const raw = Array.isArray(favs) ? favs : [];
+            const res = await favoritesApi.getFavorites();
+            const restaurants = (res.restaurants || []).map((r) => typeof r === 'string' ? r : (r.id || r._id || r.restaurantId));
+            const items = (res.items || []).map((i) => typeof i === 'string' ? i : (i.id || i._id || i.itemId));
             return {
-                restaurants: raw.filter((f) => f.itemType === 'RESTAURANT').map((f) => f.itemId),
-                items: raw.filter((f) => f.itemType === 'MENU_ITEM').map((f) => f.itemId),
-                raw,
+                restaurants,
+                items,
+                raw: res.raw || [],
             };
         },
         enabled: !!user,
     });
 
     const toggleRestaurant = useMutation({
-        mutationFn: async ({ restaurantId, isFav }) => {
+        mutationFn: /** @param {any} p */ async ({ restaurantId, isFav }) => {
             if (isFav) {
                 await favoritesApi.removeFavorite('RESTAURANT', restaurantId);
             } else {
@@ -212,7 +222,7 @@ export function useFavorites() {
     });
 
     const toggleItem = useMutation({
-        mutationFn: async ({ itemId, isFav }) => {
+        mutationFn: /** @param {any} p */ async ({ itemId, isFav }) => {
             if (isFav) {
                 await favoritesApi.removeFavorite('MENU_ITEM', itemId);
             } else {
@@ -346,7 +356,7 @@ export function useDashboardMetrics(scope, restaurantId) {
 export function usePlaceOrder() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (orderData) => {
+        mutationFn: /** @param {any} orderData */ async (orderData) => {
             return await ordersApi.createOrder(orderData);
         },
         onSuccess: () => {
@@ -358,7 +368,7 @@ export function usePlaceOrder() {
 export function useUpdateOrderStatus() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ orderId, newStatus, reason }) => {
+        mutationFn: /** @param {any} p */ async ({ orderId, newStatus, reason }) => {
             return await ordersApi.updateOrderStatus(orderId, newStatus, reason);
         },
         onSuccess: () => {
@@ -372,7 +382,7 @@ export function useUpdateOrderStatus() {
 export function useSubmitApplication() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (appData) => {
+        mutationFn: /** @param {any} appData */ async (appData) => {
             return await applicationsApi.apply(appData);
         },
         onSuccess: () => {
@@ -384,7 +394,7 @@ export function useSubmitApplication() {
 export function useApproveApplication() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (applicationId) => {
+        mutationFn: /** @param {any} applicationId */ async (applicationId) => {
             return await applicationsApi.approveApplication(applicationId);
         },
         onSuccess: () => {
@@ -398,7 +408,7 @@ export function useApproveApplication() {
 export function useRejectApplication() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ applicationId, rejectionReason }) => {
+        mutationFn: /** @param {any} p */ async ({ applicationId, rejectionReason }) => {
             return await applicationsApi.rejectApplication(applicationId, rejectionReason);
         },
         onSuccess: () => {
@@ -410,7 +420,7 @@ export function useRejectApplication() {
 export function useRequestChanges() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (applicationId) => {
+        mutationFn: /** @param {any} applicationId */ async (applicationId) => {
             return await applicationsApi.rejectApplication(applicationId, "Changes requested");
         },
         onSuccess: () => {
@@ -422,7 +432,7 @@ export function useRequestChanges() {
 export function useSetRestaurantStatus() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ restaurantId, status }) => {
+        mutationFn: /** @param {any} p */ async ({ restaurantId, status }) => {
             return await restaurantsApi.updateRestaurant(restaurantId, { status });
         },
         onSuccess: () => {
@@ -435,7 +445,7 @@ export function useSetRestaurantStatus() {
 export function useSetCommissionRate() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ rate, overrides }) => {
+        mutationFn: /** @param {any} p */ async ({ rate, overrides }) => {
             return await financialsApi.updateCommissionConfig(rate, overrides || []);
         },
         onSuccess: () => {
@@ -449,8 +459,15 @@ export function useSetCommissionRate() {
 export function useManageMenuCategory() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data) => {
-            return data;
+        mutationFn: /** @param {any} data */ async (data) => {
+            const categoryId = data.categoryId || data.id;
+            if (data.action === "delete") {
+                return await menuApi.deleteMenuCategory(categoryId);
+            }
+            if (data.action === "update" || categoryId) {
+                return await menuApi.updateMenuCategory(categoryId, { name: data.name, sortOrder: data.sortOrder });
+            }
+            return await menuApi.createMenuCategory({ name: data.name, sortOrder: data.sortOrder || 1 });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["restaurantMenu"] });
@@ -461,11 +478,29 @@ export function useManageMenuCategory() {
 export function useManageMenuItem() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (data) => {
-            if (data.id) {
-                return await menuApi.updateMenuItem(data.id, data);
+        mutationFn: /** @param {any} data */ async (data) => {
+            const itemId = data.itemId || data.id;
+            if (data.action === "delete") {
+                return await menuApi.deleteMenuItem(itemId);
             }
-            return await menuApi.createMenuItem(data.restaurantId, data);
+
+            const priceInCents = typeof data.price === "number"
+                ? (data.price < 100 ? Math.round(data.price * 100) : data.price)
+                : undefined;
+
+            const payload = {};
+            if (data.categoryId) payload.categoryId = data.categoryId;
+            if (data.name) payload.name = data.name;
+            if (data.description !== undefined || data.desc !== undefined) payload.description = data.description || data.desc || "";
+            if (priceInCents !== undefined) payload.price = priceInCents;
+            if (data.imageUrl !== undefined || data.image !== undefined) payload.imageUrl = data.imageUrl || data.image || "";
+            if (data.isVegetarian !== undefined || data.veg !== undefined) payload.isVegetarian = data.isVegetarian ?? data.veg ?? false;
+            if (data.isAvailable !== undefined || data.available !== undefined) payload.isAvailable = data.isAvailable ?? data.available ?? true;
+
+            if (data.action === "update" || itemId) {
+                return await menuApi.updateMenuItem(itemId, payload);
+            }
+            return await menuApi.createMenuItem(payload);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["restaurantMenu"] });
@@ -476,7 +511,7 @@ export function useManageMenuItem() {
 export function useCreateReview() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (reviewData) => {
+        mutationFn: /** @param {any} reviewData */ async (reviewData) => {
             return await reviewsApi.createReview(reviewData);
         },
         onSuccess: () => {
@@ -492,17 +527,16 @@ export function useCreateReview() {
 
 export function useMyRestaurant() {
     const { user } = useMarketplaceUser();
-    const userRestaurantId = user?.restaurantId || user?.restaurant_id || user?.data?.restaurant_id;
     return useQuery({
-        queryKey: ["myRestaurant", userRestaurantId],
+        queryKey: ["myRestaurant", user?.id],
         queryFn: async () => {
-            if (!userRestaurantId) return null;
-            const restaurant = await restaurantsApi.getRestaurantById(userRestaurantId);
+            if (!user) return null;
+            const restaurant = await restaurantsApi.getMyRestaurant().catch(() => null);
             if (!restaurant) return null;
-            const reviews = await reviewsApi.getRestaurantReviews(userRestaurantId).catch(() => []);
+            const reviews = await reviewsApi.getRestaurantReviews(restaurant.id || restaurant._id).catch(() => []);
             const stats = computeRestaurantStats((reviews || []).map(mapReview));
             return { ...mapRestaurant(restaurant), ...stats };
         },
-        enabled: !!userRestaurantId,
+        enabled: !!user,
     });
 }

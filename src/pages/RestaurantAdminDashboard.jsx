@@ -9,6 +9,7 @@ import StarRating from "@/components/StarRating";
 import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useParams } from "react-router-dom";
 
 const nav = [
     { id: "open", label: "Open Orders", icon: ClipboardList },
@@ -170,7 +171,8 @@ function AllOrders({ restaurant }) {
 }
 
 function Menu({ restaurant }) {
-    const { data: categories = [] } = useRestaurantMenu(restaurant.id);
+    const { slug } = useParams();
+    const { data: categories = [] } = useRestaurantMenu(slug);
     const manageCategory = useManageMenuCategory();
     const manageItem = useManageMenuItem();
     const [adding, setAdding] = useState(false);
