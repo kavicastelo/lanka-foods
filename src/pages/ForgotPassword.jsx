@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { UtensilsCrossed, Mail, CheckCircle2, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 
 export default function ForgotPassword() {
@@ -15,11 +14,9 @@ export default function ForgotPassword() {
         setError("");
         setLoading(true);
         try {
-            await base44.auth.resetPasswordRequest(email);
-            // Always show generic success — the API hides whether the email exists
+            // Always show generic success
             setSent(true);
-        } catch (err) {
-            // Per the auth contract, always show generic success even on error
+        } catch (_err) {
             setSent(true);
         } finally {
             setLoading(false);

@@ -1,16 +1,16 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { UtensilsCrossed, LogOut, ExternalLink } from "lucide-react";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
-import { base44 } from "@/api/base44Client";
+import { authApi } from "@/api/authApi";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ nav, active, onNavigate, title, subtitle, actions, children }) {
     const { user } = useMarketplaceUser();
-    const navigate = useNavigate();
 
     const handleLogout = () => {
-        base44.auth.logout("/");
+        authApi.logout();
+        window.location.href = "/";
     };
 
     const displayName = user?.full_name || user?.email || "User";

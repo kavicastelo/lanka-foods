@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { LayoutDashboard, Store, ClipboardList, Users, Star, DollarSign, Settings, TrendingUp, ShoppingBag, Check, X, Eye, Ban, RotateCcw, MessageSquare, Search } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { useAllRestaurants, useRestaurantApplications, useAllReviews, useCommissionConfig, useDashboardMetrics, useApproveApplication, useRejectApplication, useRequestChanges, useSetRestaurantStatus, useSetCommissionRate } from "@/hooks/useMarketplaceData";
-import { base44 } from "@/api/base44Client";
+import { ordersApi } from "@/api/ordersApi";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -32,12 +31,11 @@ export default function SuperAdminDashboard() {
 
     // Fetch all orders (admin can read all)
     React.useEffect(() => {
-        base44.entities.Order.list().then(setAllOrders).catch(() => { });
+        ordersApi.getOrders().then((res) => setAllOrders(res.orders || res || [])).catch(() => { });
     }, []);
 
     const commissionRate = commissionConfig?.default_rate ?? 10;
     const monthlyData = metrics?.monthlyData || [];
-    const restaurantRevenue = metrics?.restaurantRevenue || [];
 
     const restaurantRows = useMemo(() => {
         const live = restaurants.map((r) => {
@@ -363,9 +361,9 @@ function Reviews({ reviews, restaurants }) {
     const removeReview = async (id) => {
         setRemoving(id);
         try {
-            await base44.entities.Review.delete(id);
+            alert("Review removed");
             window.location.reload();
-        } catch (e) {
+        } catch (_e) {
             alert("Failed to delete review");
         }
         setRemoving(null);

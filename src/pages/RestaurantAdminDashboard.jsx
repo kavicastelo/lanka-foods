@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { ClipboardList, ListOrdered, UtensilsCrossed, Settings, DollarSign, Star, Plus, Trash2, Check, X, Clock, AlertCircle, TrendingUp, ShoppingBag, CheckCircle2 } from "lucide-react";
+import { ClipboardList, ListOrdered, UtensilsCrossed, Settings, DollarSign, Star, Plus, Trash2, Check, Clock, AlertCircle, TrendingUp, ShoppingBag, CheckCircle2 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { useMyRestaurant, useRestaurantMenu, useRestaurantOrders, useRestaurantReviews, useUpdateOrderStatus, useManageMenuCategory, useManageMenuItem, useDashboardMetrics, useCommissionConfig } from "@/hooks/useMarketplaceData";
-import { useMarketplaceUser } from "@/lib/marketplaceAuth";
-import { base44 } from "@/api/base44Client";
+import { restaurantsApi } from "@/api/restaurantsApi";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatusBadge from "@/components/StatusBadge";
 import StarRating from "@/components/StarRating";
@@ -21,7 +20,6 @@ const nav = [
 ];
 
 export default function RestaurantAdminDashboard() {
-    const { user } = useMarketplaceUser();
     const { data: restaurant, isLoading } = useMyRestaurant();
     const [tab, setTab] = useState("open");
 
@@ -189,7 +187,7 @@ function Menu({ restaurant }) {
             name: form.name,
             price: +form.price,
             description: form.desc,
-            imageUrl: "https://media.base44.com/images/public/6a93306cab6a5cdb8c52755d/3116b6e28_generated_image.png",
+            imageUrl: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80",
             isAvailable: form.available,
             isVegetarian: false,
         });
@@ -268,10 +266,10 @@ function SettingsTab({ restaurant }) {
     const input = "w-full rounded-xl border border-border bg-card py-2.5 px-4 text-sm outline-none focus:border-primary";
     const save = async (e) => {
         e.preventDefault();
-        await base44.entities.Restaurant.update(restaurant.id, {
+        await restaurantsApi.updateRestaurant(restaurant.id, {
             name: s.name, phone: s.phone, email: s.email, address: s.address,
-            description: s.description, hours: s.hours, delivery_fee: s.deliveryFee,
-            min_order: s.minOrder, prep_time: s.prepTime, pickup: s.pickup, delivery: s.delivery,
+            description: s.description, hours: s.hours, deliveryFee: s.deliveryFee,
+            minOrder: s.minOrder, prepTime: s.prepTime, pickup: s.pickup, delivery: s.delivery,
         });
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
