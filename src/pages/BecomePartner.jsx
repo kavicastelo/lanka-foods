@@ -18,13 +18,13 @@ export default function BecomePartner() {
         e.preventDefault();
         submitMutation.mutate(
             {
-                business_name: form.name,
-                owner_name: form.owner,
+                businessName: form.name,
+                ownerName: form.owner,
                 email: form.email,
                 phone: form.phone,
                 city: form.city,
                 address: form.address,
-                business_type: form.type,
+                businessType: form.type,
                 cuisine: form.cuisine,
                 description: form.description,
                 pickup: form.pickup,
@@ -32,7 +32,8 @@ export default function BecomePartner() {
             },
             {
                 onError: (err) => {
-                    alert(err?.response?.data?.error || err?.message || "Failed to submit application");
+                    const error = /** @type {any} */ (err);
+                    alert(error?.response?.data?.error || error?.message || "Failed to submit application");
                 },
             }
         );
@@ -94,7 +95,7 @@ export default function BecomePartner() {
 
                 {submitMutation.isError && (
                     <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-                        {submitMutation.error?.response?.data?.error || submitMutation.error?.message || "Failed to submit application"}
+                        {(/** @type {any} */ (submitMutation.error))?.response?.data?.error || submitMutation.error?.message || "Failed to submit application"}
                     </div>
                 )}
 
@@ -110,7 +111,7 @@ export default function BecomePartner() {
     );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text", full }) {
+function Field({ label, value, onChange, placeholder, type = "text", full = false }) {
     return (
         <div className={full ? "sm:col-span-2" : ""}>
             <label className="text-sm font-600">{label}</label>

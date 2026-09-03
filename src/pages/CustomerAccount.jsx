@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Package, Heart, Star, User, ArrowRight } from "lucide-react";
 import { useMyOrders, useMyReviews, useFavorites, useActiveRestaurants } from "@/hooks/useMarketplaceData";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
+import { menuApi } from "@/api/menuApi";
 import StarRating from "@/components/StarRating";
 import RestaurantCard from "@/components/RestaurantCard";
 import { Image } from "@/components/ui/image";
@@ -35,7 +36,7 @@ export default function CustomerAccount() {
     const [tab, setTab] = useState("orders");
     const [favMenuItems, setFavMenuItems] = useState([]);
 
-    const displayName = user?.full_name || user?.email || "User";
+    const displayName = user?.user?.fullName || user?.user?.email || "User";
     const userPhone = user?.phone || user?.data?.phone || "";
 
     const favRestaurants = restaurants.filter((r) => favoriteRestaurants.includes(r.id));

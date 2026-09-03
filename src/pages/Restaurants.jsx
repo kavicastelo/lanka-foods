@@ -63,7 +63,7 @@ export default function Restaurants() {
                 case "rating": return (b.rating || 0) - (a.rating || 0);
                 case "popular": return (b.reviewCount || 0) - (a.reviewCount || 0);
                 case "fastest": return (a.prepTime || "").localeCompare(b.prepTime || "");
-                case "newest": return new Date(b.created_date) - new Date(a.created_date);
+                case "newest": return new Date(b.created_date).getTime() - new Date(a.created_date).getTime();
                 default: return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
             }
         });

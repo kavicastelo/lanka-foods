@@ -3,7 +3,7 @@ import { apiClient } from './apiClient';
 export const financialsApi = {
   async getCommissionConfig() {
     const res = await apiClient.get('/api/admin/commission-config');
-    return res.data || res;
+    return res.config || res.data || res;
   },
 
   async updateCommissionConfig(defaultCommissionRate, overrides = []) {

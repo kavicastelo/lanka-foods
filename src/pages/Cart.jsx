@@ -93,7 +93,7 @@ export default function Cart() {
     );
 }
 
-function Row({ label, value, bold, muted }) {
+function Row({ label, value, bold = false, muted = false }) {
     return (
         <div className="flex items-center justify-between">
             <span className={muted ? "text-muted-foreground" : ""}>{label}</span>

@@ -18,7 +18,7 @@ export default function RestaurantStorefront() {
     const [activeItem, setActiveItem] = useState(null);
     const [activeCat, setActiveCat] = useState(null);
 
-    const { data: categories = [] } = useRestaurantMenu(restaurant?.id);
+    const { data: categories = [] } = useRestaurantMenu(slug);
     const { data: reviews = [] } = useRestaurantReviews(restaurant?.id);
 
     if (isLoading) {
@@ -214,7 +214,7 @@ export default function RestaurantStorefront() {
     );
 }
 
-function Badge({ icon: Icon, tone = "gray", children }) {
+function Badge({ icon: Icon = null, tone = "gray", children }) {
     const tones = {
         green: "bg-green-50 text-green-700",
         blue: "bg-blue-50 text-blue-700",

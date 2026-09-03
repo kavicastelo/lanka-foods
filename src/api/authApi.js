@@ -3,16 +3,18 @@ import { apiClient, tokenStorage } from './apiClient';
 export const authApi = {
   async register(data) {
     const res = await apiClient.post('/api/auth/register', data);
-    if (res.token) {
-      tokenStorage.setToken(res.token);
+    const result = /** @type {any} */ (res);
+    if (result.token) {
+      tokenStorage.setToken(result.token);
     }
     return res;
   },
 
   async login(email, password) {
     const res = await apiClient.post('/api/auth/login', { email, password });
-    if (res.token) {
-      tokenStorage.setToken(res.token);
+    const result = /** @type {any} */ (res);
+    if (result.token) {
+      tokenStorage.setToken(result.token);
     }
     return res;
   },

@@ -2,7 +2,7 @@ import React from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function StarRating({ value = 0, size = 16, className, interactive = false, onChange }) {
+export default function StarRating({ value = 0, size = 16, className = "", interactive = false, onChange = undefined }) {
     return (
         <div className={cn("flex items-center gap-0.5", className)}>
             {[1, 2, 3, 4, 5].map((n) => (

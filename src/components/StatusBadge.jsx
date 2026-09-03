@@ -40,7 +40,7 @@ const LABELS = {
 
 const fmt = (s) => (LABELS[s] ? LABELS[s] : s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
 
-export default function StatusBadge({ status, kind = "order", className }) {
+export default function StatusBadge({ status, kind = "order", className = "" }) {
     const map = kind === "restaurant" ? RESTAURANT_TONE : ORDER_TONE;
     const tone = map[status] || "slate";
     return <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-700 capitalize", TONES[tone], className)}>{fmt(status)}</span>;

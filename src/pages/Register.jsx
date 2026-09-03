@@ -16,6 +16,11 @@ export default function Register() {
 
     const [c, setC] = useState({ name: "", email: "", phone: "", password: "" });
     const [r, setR] = useState({ name: "", owner: "", email: "", phone: "", address: "", city: "Helsinki", cuisine: "", description: "", pickup: true, delivery: true, password: "" });
+    const [otp, setOtp] = useState("");
+
+    const verifyOtp = async (e) => {
+        e.preventDefault();
+    };
 
     const returnTo = safeReturnTo();
     const input = "w-full rounded-xl border border-border bg-card py-2.5 px-4 text-sm outline-none focus:border-primary";
@@ -55,7 +60,7 @@ export default function Register() {
             });
 
             await applicationsApi.apply({
-                restaurantName: r.name,
+                businessName: r.name,
                 ownerName: r.owner,
                 email: r.email,
                 phone: r.phone,

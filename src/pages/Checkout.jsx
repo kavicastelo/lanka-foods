@@ -23,7 +23,7 @@ export default function Checkout() {
     const [when, setWhen] = useState("today");
     const [date, setDate] = useState("");
     const [slot, setSlot] = useState("");
-    const [details, setDetails] = useState({ name: user?.full_name || "", phone: user?.phone || user?.data?.phone || "", email: user?.email || "", address: "", instructions: "" });
+    const [details, setDetails] = useState({ name: user?.user?.fullName || "", phone: user?.user?.phone || user?.data?.phone || "", email: user?.user?.email || "", address: "", instructions: "" });
     const [payment, setPayment] = useState("card");
 
     if (!restaurant || cart.items.length === 0) {
@@ -180,7 +180,7 @@ export default function Checkout() {
 
             {placeOrderMutation.isError && (
                 <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-                    {placeOrderMutation.error?.response?.data?.error || placeOrderMutation.error?.message || "Failed to place order"}
+                    {(/** @type {any} */ (placeOrderMutation.error))?.response?.data?.error || placeOrderMutation.error?.message || "Failed to place order"}
                 </div>
             )}
 
@@ -222,7 +222,7 @@ function Chip({ active, onClick, children }) {
     return <button onClick={onClick} className={cn("rounded-full border px-4 py-2 text-sm font-600 transition", active ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary")}>{children}</button>;
 }
 
-function Field({ label, value, onChange, placeholder, type = "text", full }) {
+function Field({ label, value, onChange, placeholder, type = "text", full = false }) {
     return (
         <div className={full ? "sm:col-span-2" : ""}>
             <label className="text-sm font-600">{label}</label>

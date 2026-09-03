@@ -95,7 +95,7 @@ export default function SuperAdminDashboard() {
     );
 }
 
-function Card({ children, className }) {
+function Card({ children, className = "" }) {
     return <div className={cn("rounded-2xl border border-border bg-card p-5", className)}>{children}</div>;
 }
 
@@ -579,7 +579,7 @@ function DetailModal({ row, onClose }) {
     );
 }
 
-function Info({ label, value, full }) {
+function Info({ label, value, full = false }) {
     return (
         <div className={full ? "sm:col-span-2" : ""}>
             <div className="text-xs font-600 uppercase text-muted-foreground">{label}</div>
