@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { UtensilsCrossed, LogOut, ExternalLink } from "lucide-react";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { authApi } from "@/api/authApi";
+import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ nav, active, onNavigate, title, subtitle = null, actions = null, children = null }) {
@@ -63,7 +64,10 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                                 <h1 className="font-display text-xl font-700">{title}</h1>
                                 {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
                             </div>
-                            {actions}
+                            <div className="flex items-center gap-3">
+                                <NotificationCenter />
+                                {actions}
+                            </div>
                         </div>
                     </header>
                     <div className="flex gap-1 overflow-x-auto border-b border-border bg-card px-4 py-2 no-scrollbar lg:hidden">

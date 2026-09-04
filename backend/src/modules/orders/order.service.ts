@@ -14,6 +14,7 @@ import type {
   RestaurantOrdersQueryInput,
 } from './order.schemas.js';
 import { validateOrderStatusTransition } from './order.state-machine.js';
+import { NotificationService } from '../notifications/notification.service.js';
 
 export class OrderService {
   /**
@@ -173,6 +174,28 @@ export class OrderService {
       ],
     });
 
+    // 9. Dispatch Notifications
+    await Promise.all([
+      NotificationService.createNotification({
+        userId: user._id,
+        role: 'CUSTOMER',
+        type: 'ORDER_STATUS',
+        title: 'Order Placed!',
+        message: `Your order #${newOrder.orderNumber} to ${restaurant.name} has been placed. (€${centsToEurosFormatted(calculatedTotal)})`,
+        link: `/order/${newOrder._id}`,
+        metadata: { orderId: newOrder._id.toString(), orderNumber: newOrder.orderNumber },
+      }),
+      NotificationService.createNotification({
+        restaurantId: restaurant._id,
+        role: 'RESTAURANT_ADMIN',
+        type: 'NEW_ORDER',
+        title: `New Order #${newOrder.orderNumber}`,
+        message: `New order #${newOrder.orderNumber} received for €${centsToEurosFormatted(calculatedTotal)}.`,
+        link: `/restaurant/dashboard?tab=orders`,
+        metadata: { orderId: newOrder._id.toString(), orderNumber: newOrder.orderNumber },
+      }),
+    ]).catch(() => {});
+
     return toOrderResponseDto(newOrder);
   }
 
@@ -247,6 +270,18 @@ export class OrderService {
     if (nextStatus === 'completed') {
       await FinancialService.calculateAndCreateCommissionRecord(updatedOrder._id.toString());
     }
+
+    // Dispatch Notification to Customer
+    const formattedStatus = nextStatus.replace(/_/g, ' ').toUpperCase();
+    await NotificationService.createNotification({
+      userId: updatedOrder.customerId,
+      role: 'CUSTOMER',
+      type: 'ORDER_STATUS',
+      title: `Order Update #${updatedOrder.orderNumber}`,
+      message: `Your order #${updatedOrder.orderNumber} status is now ${formattedStatus}.`,
+      link: `/order/${updatedOrder._id}`,
+      metadata: { orderId: updatedOrder._id.toString(), orderNumber: updatedOrder.orderNumber, status: nextStatus },
+    }).catch(() => {});
 
     return toOrderResponseDto(updatedOrder);
   }

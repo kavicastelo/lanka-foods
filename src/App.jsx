@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster"
+import PwaInstallBanner from '@/components/PwaInstallBanner';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
@@ -95,6 +96,7 @@ function App() {
                     <Router>
                         <ScrollToTop />
                         <AuthenticatedApp />
+                        <PwaInstallBanner />
                     </Router>
                 </MarketplaceProvider>
                 <Toaster />

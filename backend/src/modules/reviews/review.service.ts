@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { NotificationService } from '../notifications/notification.service.js';
 import { Order } from '../../models/order.model.js';
 import { Restaurant } from '../../models/restaurant.model.js';
 import { Review, type IReview } from '../../models/review.model.js';
@@ -85,6 +86,17 @@ export class ReviewService {
 
       // 7. Update aggregate rating on target Restaurant
       await ReviewService.updateRestaurantRatingSummary(order.restaurantId.toString());
+
+      // 8. Dispatch Notification to Restaurant Admin
+      await NotificationService.createNotification({
+        restaurantId: order.restaurantId,
+        role: 'RESTAURANT_ADMIN',
+        type: 'NEW_REVIEW',
+        title: `New ${review.rating}★ Review`,
+        message: `${user.fullName} left a ${review.rating}★ review for your restaurant.`,
+        link: `/restaurant/dashboard?tab=reviews`,
+        metadata: { reviewId: review._id.toString(), rating: review.rating },
+      }).catch(() => {});
 
       return toReviewResponseDto(review);
     } catch (err: unknown) {
