@@ -13,7 +13,7 @@ export async function reviewRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/reviews',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -41,7 +41,7 @@ export async function reviewRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/reviews/my-reviews',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -81,4 +81,29 @@ export async function reviewRoutes(fastify: FastifyInstance) {
     const result = await ReviewService.getRestaurantReviews(identifier, parseResult.data);
     return reply.status(200).send(result);
   });
+
+  // GET /api/admin/reviews (Super Admin all reviews)
+  fastify.get(
+    '/api/admin/reviews',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (_request, reply) => {
+      const reviews = await ReviewService.getAllReviews();
+      return reply.status(200).send({ reviews });
+    }
+  );
+
+  // DELETE /api/admin/reviews/:id (Super Admin moderate/delete review)
+  fastify.delete(
+    '/api/admin/reviews/:id',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      await ReviewService.deleteReview(id);
+      return reply.status(200).send({ message: 'Review deleted successfully' });
+    }
+  );
 }

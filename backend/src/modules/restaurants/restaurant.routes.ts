@@ -79,4 +79,49 @@ export async function restaurantRoutes(fastify: FastifyInstance) {
     const restaurant = await RestaurantService.getPublicRestaurantBySlug(slug);
     return reply.status(200).send({ restaurant });
   });
+
+  // GET /api/admin/restaurants (Authenticated Super Admin query for all restaurants)
+  fastify.get(
+    '/api/admin/restaurants',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (request, reply) => {
+      const parseResult = restaurantQuerySchema.safeParse(request.query);
+      const query = parseResult.success
+        ? parseResult.data
+        : { page: 1, limit: 50, sortBy: 'createdAt' as const, sortOrder: 'desc' as const };
+      const result = await RestaurantService.listAdminRestaurants(query);
+      return reply.status(200).send(result);
+    }
+  );
+
+  // PATCH /api/restaurants/:id (Authenticated Super Admin update of status/commission/details)
+  fastify.patch(
+    '/api/restaurants/:id',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = (request.body || {}) as Record<string, unknown>;
+      const restaurant = await RestaurantService.updateRestaurantByAdmin(id, body);
+      return reply.status(200).send({ message: 'Restaurant updated successfully', restaurant });
+    }
+  );
+
+  // PATCH /api/admin/restaurants/:id (Alias for Super Admin restaurant update)
+  fastify.patch(
+    '/api/admin/restaurants/:id',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = (request.body || {}) as Record<string, unknown>;
+      const restaurant = await RestaurantService.updateRestaurantByAdmin(id, body);
+      return reply.status(200).send({ message: 'Restaurant updated successfully', restaurant });
+    }
+  );
 }
+

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { MenuCategory } from '../../models/menu-category.model.js';
 import { MenuItem, type IMenuItem } from '../../models/menu-item.model.js';
 import { Restaurant } from '../../models/restaurant.model.js';
@@ -19,12 +20,22 @@ import type {
 
 export class MenuService {
   /**
-   * Returns public menu catalog for an active restaurant by slug.
+   * Returns public menu catalog for an active restaurant by slug or ID.
    * Includes active categories and available items only.
    */
-  static async getPublicMenuByRestaurantSlug(slug: string): Promise<PublicMenuCatalogDto> {
-    const normalizedSlug = slug.toLowerCase().trim();
-    const restaurant = await Restaurant.findOne({ slug: normalizedSlug, status: 'active' }).lean();
+  static async getPublicMenuByRestaurantSlug(slugOrId: string): Promise<PublicMenuCatalogDto> {
+    const normalized = slugOrId.toLowerCase().trim();
+    const isObjectId = mongoose.Types.ObjectId.isValid(slugOrId);
+
+    const queryConditions: Array<Record<string, unknown>> = [{ slug: normalized }];
+    if (isObjectId) {
+      queryConditions.push({ _id: slugOrId });
+    }
+
+    const restaurant = await Restaurant.findOne({
+      $or: queryConditions,
+      status: 'active',
+    }).lean();
 
     if (!restaurant) {
       const error = new Error('Restaurant not found') as Error & { statusCode?: number };

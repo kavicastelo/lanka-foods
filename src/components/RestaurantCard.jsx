@@ -39,15 +39,15 @@ export default function RestaurantCard({ restaurant, variant: _variant = "grid" 
             </div>
             <div className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                    <Link to={`/restaurant/${restaurant.slug}`} className="font-display text-lg font-600 leading-tight hover:text-primary">
-                        {restaurant.name}
+                    <Link to={`/restaurant/${restaurant.slug}`} className="min-w-0 flex-1 font-display text-lg font-600 leading-tight hover:text-primary">
+                        <span className="line-clamp-1">{restaurant.name}</span>
                     </Link>
-                    <div className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-sm font-700 text-amber-700">
+                    <div className="shrink-0 flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-sm font-700 text-amber-700">
                         <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                        {restaurant.rating ? restaurant.rating.toFixed(1) : "—"}
+                        {(restaurant.rating || restaurant.ratingAverage) > 0 ? (restaurant.rating || restaurant.ratingAverage).toFixed(1) : "NEW"}
                     </div>
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">({restaurant.reviewCount || 0} reviews) · {(restaurant.cuisines || []).join(", ")}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">({restaurant.reviewCount || 0} reviews) · {(restaurant.cuisines || []).join(", ")}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{restaurant.city}</span>
                     <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{restaurant.prepTime}</span>

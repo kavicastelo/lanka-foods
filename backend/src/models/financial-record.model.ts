@@ -9,11 +9,13 @@ export interface IFinancialRecord extends Document {
   customerId: Types.ObjectId;
   orderSubtotal: number; // in cents
   deliveryFee: number; // in cents
+  serviceFee: number; // in cents (customer service fee collected by restaurant)
   orderTotal: number; // in cents
   commissionableAmount: number; // in cents (base amount on which commission was calculated)
   commissionRate: number; // rate percentage snapshot (e.g. 10 for 10%)
-  commissionAmount: number; // in cents (calculated platform commission)
-  restaurantNetAmount: number; // in cents (net earnings owed to restaurant)
+  commissionAmount: number; // in cents (calculated percentage commission)
+  platformFeeTotal: number; // in cents (total fee owed to platform = commissionAmount + serviceFee)
+  restaurantNetAmount: number; // in cents (net earnings retained by restaurant)
   status: SettlementStatus;
   settledAt?: Date;
   settledBy?: Types.ObjectId;
@@ -57,6 +59,11 @@ const financialRecordSchema = new Schema<IFinancialRecord>(
       default: 0,
       min: 0,
     },
+    serviceFee: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     orderTotal: {
       type: Number,
       required: [true, 'orderTotal is required'],
@@ -76,6 +83,12 @@ const financialRecordSchema = new Schema<IFinancialRecord>(
     commissionAmount: {
       type: Number,
       required: [true, 'commissionAmount is required'],
+      min: 0,
+    },
+    platformFeeTotal: {
+      type: Number,
+      required: [true, 'platformFeeTotal is required'],
+      default: 0,
       min: 0,
     },
     restaurantNetAmount: {

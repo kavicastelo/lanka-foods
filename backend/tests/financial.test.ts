@@ -110,6 +110,18 @@ describe('Phase 11 — Commission & Financial System Integration & Security Test
       expect(config.defaultRate).toBe(10);
     });
 
+    it('GET /api/admin/commission-config — Restaurant Admin can view global commission config (200 OK)', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/admin/commission-config',
+        headers: { authorization: `Bearer ${restAdminAToken}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const config = JSON.parse(response.payload).config;
+      expect(config.defaultRate).toBeDefined();
+    });
+
     it('POST /api/admin/commission-config — Super Admin updates global commission rate', async () => {
       const response = await app.inject({
         method: 'GET',
@@ -177,6 +189,8 @@ describe('Phase 11 — Commission & Financial System Integration & Security Test
       expect(record!.commissionableAmount).toBe(3000);
       expect(record!.commissionRate).toBe(10);
       expect(record!.commissionAmount).toBe(300); // 10% of 3000 = 300 cents (€3.00)
+      expect(record!.serviceFee).toBe(99); // 99 cents default service fee
+      expect(record!.platformFeeTotal).toBe(399); // 300 + 99 = 399 cents (€3.99)
       expect(record!.restaurantNetAmount).toBe(2700); // 3000 - 300 = 2700 cents (€27.00)
       expect(record!.status).toBe('PENDING');
 

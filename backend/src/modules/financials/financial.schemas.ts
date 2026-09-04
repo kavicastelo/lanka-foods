@@ -4,7 +4,15 @@ export const updateCommissionConfigSchema = z.object({
   defaultRate: z
     .number({ required_error: 'defaultRate is required' })
     .min(0, 'Commission rate cannot be negative')
-    .max(50, 'Commission rate cannot exceed 50%'),
+    .max(50, 'Commission rate cannot exceed 50%')
+    .optional(),
+  serviceFee: z
+    .number()
+    .min(0, 'Service fee cannot be negative')
+    .max(5000, 'Service fee cannot exceed €50.00')
+    .optional(),
+  restaurantId: z.string().optional(),
+  rate: z.number().min(0, 'Commission rate cannot be negative').max(50, 'Commission rate cannot exceed 50%').optional(),
 });
 
 export const getFinancialRecordsQuerySchema = z.object({

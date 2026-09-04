@@ -178,7 +178,8 @@ describe('Phase 6 — Server-Authoritative Cart & Order Calculations Integration
       expect(order.paymentStatus).toBe('pending');
       expect(order.subtotal).toBe(2100);
       expect(order.deliveryFee).toBe(0);
-      expect(order.total).toBe(2100);
+      expect(order.serviceFee).toBe(99);
+      expect(order.total).toBe(2199);
       expect(order.items).toHaveLength(1);
       expect(order.items[0].nameSnapshot).toBe('Chicken Rice & Curry');
       expect(order.items[0].unitPrice).toBe(1050);
@@ -188,7 +189,8 @@ describe('Phase 6 — Server-Authoritative Cart & Order Calculations Integration
       const dbOrder = await Order.findById(order.id);
       expect(dbOrder!.subtotal).toBe(2100);
       expect(dbOrder!.deliveryFee).toBe(0);
-      expect(dbOrder!.total).toBe(2100);
+      expect(dbOrder!.serviceFee).toBe(99);
+      expect(dbOrder!.total).toBe(2199);
     });
 
     it('should place a delivery order successfully with subtotal, restaurant delivery fee, and address snapshot', async () => {
@@ -213,7 +215,8 @@ describe('Phase 6 — Server-Authoritative Cart & Order Calculations Integration
 
       expect(order.subtotal).toBe(1700);
       expect(order.deliveryFee).toBe(350); // Rest A delivery fee = 350
-      expect(order.total).toBe(2050); // 1700 + 350 = 2050
+      expect(order.serviceFee).toBe(99);
+      expect(order.total).toBe(2149); // 1700 + 350 + 99 = 2149
       expect(order.deliveryAddress).toBe('Aleksanterinkatu 15 A 4, 00100 Helsinki');
     });
 
@@ -265,7 +268,7 @@ describe('Phase 6 — Server-Authoritative Cart & Order Calculations Integration
       const order = JSON.parse(response.payload).order;
       // Server MUST look up actual database price (1050) -> 1050 * 2 = 2100 cents
       expect(order.subtotal).toBe(2100);
-      expect(order.total).toBe(2100);
+      expect(order.total).toBe(2199);
     });
 
     it('TOTAL TAMPERING DEFENSE: Client-submitted subtotal/total/deliveryFee must be completely ignored', async () => {
@@ -286,7 +289,7 @@ describe('Phase 6 — Server-Authoritative Cart & Order Calculations Integration
       expect(response.statusCode).toBe(201);
       const order = JSON.parse(response.payload).order;
       expect(order.subtotal).toBe(2100);
-      expect(order.total).toBe(2100);
+      expect(order.total).toBe(2199);
     });
 
     it('CUSTOMER SPOOFING DEFENSE: Client-submitted customerId must be overridden by verified JWT user', async () => {

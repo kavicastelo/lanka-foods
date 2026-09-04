@@ -1,4 +1,5 @@
 import { config } from '../../config/index.js';
+import { Order } from '../../models/order.model.js';
 import { User, comparePassword, hashPassword, type IUser } from '../../models/user.model.js';
 import type { LoginInput, RegisterInput } from './auth.schemas.js';
 
@@ -102,5 +103,73 @@ export class AuthService {
     }
 
     return admin;
+  }
+
+  /**
+   * Super Admin endpoint to list registered users with aggregate order & spending metrics.
+   */
+  static async listAdminUsers(): Promise<Array<{
+    id: string;
+    email: string;
+    fullName: string;
+    phone: string;
+    role: string;
+    isActive: boolean;
+    createdAt: string;
+    orderCount: number;
+    totalSpending: number;
+    lastOrderAt: string | null;
+  }>> {
+    const [users, orders] = await Promise.all([
+      User.find().sort({ createdAt: -1 }).lean(),
+      Order.find().lean(),
+    ]);
+
+    const orderMap: Record<string, { count: number; total: number; lastOrder: string | null }> = {};
+    for (const o of orders) {
+      const cId = o.customerId.toString();
+      if (!orderMap[cId]) {
+        orderMap[cId] = { count: 0, total: 0, lastOrder: null };
+      }
+      orderMap[cId].count += 1;
+      if (!['cancelled', 'rejected'].includes(o.status)) {
+        orderMap[cId].total += o.subtotal || 0;
+      }
+      const placedStr = o.placedAt ? new Date(o.placedAt).toISOString() : null;
+      if (placedStr && (!orderMap[cId].lastOrder || placedStr > orderMap[cId].lastOrder!)) {
+        orderMap[cId].lastOrder = placedStr;
+      }
+    }
+
+    return users.map((u) => {
+      const uId = u._id.toString();
+      const stats = orderMap[uId] || { count: 0, total: 0, lastOrder: null };
+      return {
+        id: uId,
+        email: u.email,
+        fullName: u.fullName,
+        phone: u.phone || '',
+        role: u.role,
+        isActive: u.isActive,
+        createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
+        orderCount: stats.count,
+        totalSpending: +(stats.total / 100).toFixed(2),
+        lastOrderAt: stats.lastOrder,
+      };
+    });
+  }
+
+  /**
+   * Super Admin toggles user account active / suspended status.
+   */
+  static async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
+    const user = await User.findById(userId);
+    if (!user) {
+      const error = new Error('User account not found') as Error & { statusCode?: number };
+      error.statusCode = 404;
+      throw error;
+    }
+    user.isActive = isActive;
+    await user.save();
   }
 }

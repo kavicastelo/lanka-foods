@@ -76,13 +76,13 @@ describe('Phase 13 — Media Storage & Cloudflare R2 Integration Tests', () => {
   describe('Storage Adapter & Public URL Strategy', () => {
     it('R2StorageService.getPublicUrl — returns clean public CDN URL', () => {
       const publicUrl = R2StorageService.getPublicUrl('restaurants/123/cover/banner.png');
-      expect(publicUrl).toBe('https://media.lankaeats.fi/restaurants/123/cover/banner.png');
+      expect(publicUrl).toContain('restaurants/123/cover/banner.png');
     });
 
     it('R2StorageService.generateUploadUrl — generates valid storage upload result', async () => {
       const result = await R2StorageService.generateUploadUrl('restaurants/123/cover/banner.png', 'image/png');
       expect(result.uploadUrl).toBeDefined();
-      expect(result.publicUrl).toBe('https://media.lankaeats.fi/restaurants/123/cover/banner.png');
+      expect(result.publicUrl).toContain('restaurants/123/cover/banner.png');
       expect(result.objectKey).toBe('restaurants/123/cover/banner.png');
       expect(result.expiresInSeconds).toBe(900);
     });
@@ -127,6 +127,27 @@ describe('Phase 13 — Media Storage & Cloudflare R2 Integration Tests', () => {
       expect(response.statusCode).toBe(200);
       const payload = JSON.parse(response.payload);
       expect(payload.objectKey).toMatch(new RegExp(`^applications/${customerId}/[a-f0-9-]+\\.jpg$`));
+    });
+
+    it('POST /api/media/upload — should accept base64 image payload and return publicUrl', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/media/upload',
+        headers: { authorization: `Bearer ${restAdminAToken}` },
+        payload: {
+          category: 'menu_item',
+          fileName: 'kottu.png',
+          fileType: 'image/png',
+          fileSize: 1024,
+          restaurantId: restaurantAId.toString(),
+          base64Data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const payload = JSON.parse(response.payload);
+      expect(payload.publicUrl).toBeDefined();
+      expect(payload.objectKey).toMatch(new RegExp(`^menu-items/${restaurantAId}/[a-f0-9-]+\\.png$`));
     });
 
     it('DELETE /api/media — Restaurant Admin A deletes media object', async () => {

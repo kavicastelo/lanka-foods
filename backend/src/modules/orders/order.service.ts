@@ -1,3 +1,4 @@
+import { CommissionConfig } from '../../models/commission-config.model.js';
 import { MenuItem } from '../../models/menu-item.model.js';
 import { generateNextOrderNumber } from '../../models/order-counter.model.js';
 import { Order, type IOrder, type IOrderItem, type OrderStatus } from '../../models/order.model.js';
@@ -131,8 +132,9 @@ export class OrderService {
     }
 
     // 6. Server-authoritative Delivery Fee & Total Calculation
+    const globalConfig = await CommissionConfig.findOne({ key: 'default_config' });
     const calculatedDeliveryFee = input.deliveryType === 'delivery' ? restaurant.deliveryFee || 0 : 0;
-    const calculatedServiceFee = 0;
+    const calculatedServiceFee = globalConfig?.serviceFee ?? 99;
     const calculatedTotal = calculatedSubtotal + calculatedDeliveryFee + calculatedServiceFee;
 
     // 7. Atomic Order Number Generation
@@ -366,4 +368,41 @@ export class OrderService {
       },
     };
   }
+
+  /**
+   * Returns paginated order list across ALL restaurants for Super Admin.
+   */
+  static async getAllAdminOrders(
+    input: Partial<RestaurantOrdersQueryInput> = {}
+  ): Promise<PaginatedResult<OrderResponseDto>> {
+    const page = Math.max(1, input.page || 1);
+    const limit = Math.min(100, Math.max(1, input.limit || 50));
+    const skip = (page - 1) * limit;
+
+    const filter: Record<string, unknown> = {};
+    if (input.status) {
+      filter.status = input.status;
+    }
+    if (input.deliveryType) {
+      filter.deliveryType = input.deliveryType;
+    }
+
+    const [total, documents] = await Promise.all([
+      Order.countDocuments(filter),
+      Order.find(filter).sort({ placedAt: -1 }).skip(skip).limit(limit).lean(),
+    ]);
+
+    const data = documents.map((doc) => toOrderResponseDto(doc as unknown as IOrder));
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
 }
+

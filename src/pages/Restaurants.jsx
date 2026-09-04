@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useActiveRestaurants } from "@/hooks/useMarketplaceData";
+import { useActiveRestaurants, useGlobalCategories } from "@/hooks/useMarketplaceData";
 import { cities } from "@/lib/constants";
 import RestaurantCard from "@/components/RestaurantCard";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ const sortOptions = [
 
 export default function Restaurants() {
     const { data: restaurants = [], isLoading } = useActiveRestaurants();
+    const { data: globalCats = [] } = useGlobalCategories();
     const [params, setParams] = useSearchParams();
     const [showFilters, setShowFilters] = useState(false);
 
@@ -34,6 +35,61 @@ export default function Restaurants() {
         catering: params.get("catering") === "1",
     };
 
+    const normalizeCategory = (str) => {
+        if (!str || typeof str !== "string") return "";
+        return str.trim().replace(/\s+/g, " ").toLowerCase();
+    };
+
+    const formatCategoryName = (str) => {
+        if (!str || typeof str !== "string") return "";
+        const clean = str.trim().replace(/\s+/g, " ");
+        if (!clean) return "";
+        return clean
+            .split(" ")
+            .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ""))
+            .join(" ");
+    };
+
+    const getCuisines = (r) => {
+        if (!r) return [];
+        const raw = r.cuisines || r.cuisine;
+        if (Array.isArray(raw)) return raw.map((c) => String(c).trim().replace(/\s+/g, " ")).filter(Boolean);
+        if (typeof raw === "string") return raw.split(",").map((s) => s.trim().replace(/\s+/g, " ")).filter(Boolean);
+        return [];
+    };
+
+    const categoryOptions = useMemo(() => {
+        const map = new Map();
+
+        // 1. Prefer global category names if available
+        (globalCats || []).forEach((c) => {
+            if (c?.name && typeof c.name === "string") {
+                const key = normalizeCategory(c.name);
+                if (key && !map.has(key)) {
+                    map.set(key, c.name.trim().replace(/\s+/g, " "));
+                }
+            }
+        });
+
+        // 2. Add restaurant cuisines, formatting nicely if not already added
+        (restaurants || []).forEach((r) => {
+            getCuisines(r).forEach((c) => {
+                const key = normalizeCategory(c);
+                if (key && !map.has(key)) {
+                    map.set(key, formatCategoryName(c));
+                }
+            });
+        });
+
+        return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
+    }, [globalCats, restaurants]);
+
+    const activeCatOption = useMemo(() => {
+        if (!cat) return "";
+        const targetKey = normalizeCategory(cat);
+        return categoryOptions.find((opt) => normalizeCategory(opt) === targetKey) || cat;
+    }, [cat, categoryOptions]);
+
     const setParam = (key, val) => {
         const next = new URLSearchParams(params);
         if (val === "" || val === null) next.delete(key);
@@ -46,24 +102,39 @@ export default function Restaurants() {
     const filtered = useMemo(() => {
         let list = restaurants.filter((r) => {
             if (r.status !== "active") return false;
-            if (q && !(`${r.name} ${(r.cuisines || []).join(" ")} ${r.description || ""}`.toLowerCase().includes(q.toLowerCase()))) return false;
+            const rCuisines = getCuisines(r);
+            if (q && !(`${r.name} ${rCuisines.join(" ")} ${r.description || ""}`.toLowerCase().includes(q.toLowerCase()))) return false;
             if (city && r.city !== city) return false;
-            if (cat && !(r.cuisines || []).includes(cat)) return false;
-            if (filters.minRating && (r.rating || 0) < filters.minRating) return false;
+
+            // Category Filter: case-insensitive & space-normalized exact or substring match
+            if (cat) {
+                const targetCat = normalizeCategory(cat);
+                const hasCat = rCuisines.some((c) => {
+                    const cClean = normalizeCategory(c);
+                    return cClean === targetCat || cClean.includes(targetCat) || targetCat.includes(cClean);
+                });
+                if (!hasCat) return false;
+            }
+
+            // Min Rating Filter: use rating or ratingAverage
+            const currentRating = Number(r.rating ?? r.ratingAverage ?? 0) || 0;
+            if (filters.minRating && currentRating < filters.minRating) return false;
+
             if (filters.pickup && !r.pickup) return false;
             if (filters.delivery && !r.delivery) return false;
             if (filters.openNow && !r.open) return false;
-            if (filters.veg && !(r.cuisines || []).includes("Vegetarian")) return false;
+            if (filters.veg && !rCuisines.some((c) => c.toLowerCase().trim().includes("veg"))) return false;
             if (filters.halal && !r.halal) return false;
             if (filters.catering && !r.catering) return false;
             return true;
         });
+
         list = [...list].sort((a, b) => {
             switch (sort) {
-                case "rating": return (b.rating || 0) - (a.rating || 0);
+                case "rating": return (Number(b.rating ?? b.ratingAverage ?? 0)) - (Number(a.rating ?? a.ratingAverage ?? 0));
                 case "popular": return (b.reviewCount || 0) - (a.reviewCount || 0);
                 case "fastest": return (a.prepTime || "").localeCompare(b.prepTime || "");
-                case "newest": return new Date(b.created_date).getTime() - new Date(a.created_date).getTime();
+                case "newest": return new Date(b.created_date || b.createdAt || 0).getTime() - new Date(a.created_date || a.createdAt || 0).getTime();
                 default: return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
             }
         });
@@ -136,9 +207,9 @@ export default function Restaurants() {
                     </div>
                     <div>
                         <label className="text-xs font-600 uppercase tracking-wide text-muted-foreground">Category</label>
-                        <select value={cat} onChange={(e) => setParam("cat", e.target.value)} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm outline-none">
+                        <select value={activeCatOption} onChange={(e) => setParam("cat", e.target.value)} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm outline-none">
                             <option value="">All cuisines</option>
-                            {["Rice & Curry", "Kottu", "Hoppers", "Short Eats", "Biriyani", "Seafood", "Vegetarian", "Desserts", "Cakes", "Snacks", "Catering"].map((c) => <option key={c} value={c}>{c}</option>)}
+                            {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                 </div>

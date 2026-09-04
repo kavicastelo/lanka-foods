@@ -8,11 +8,11 @@ import {
 import { FinancialService } from './financial.service.js';
 
 export async function financialRoutes(fastify: FastifyInstance) {
-  // GET /api/admin/commission-config (Super Admin view global commission config)
+  // GET /api/admin/commission-config (Authenticated view global commission config & service fee)
   fastify.get(
     '/api/admin/commission-config',
     {
-      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+      preHandler: [authenticate],
     },
     async (request, reply) => {
       if (!request.user) {

@@ -35,7 +35,6 @@ export const menuApi = {
   },
 
   async createMenuItem(data) {
-    console.log(data);
     const res = /** @type {any} */ (await apiClient.post('/api/restaurant/menu-items', data));
     return res.item || res.data?.item || res;
   },

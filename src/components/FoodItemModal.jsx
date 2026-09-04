@@ -12,7 +12,7 @@ export default function FoodItemModal({ item, restaurant, onClose }) {
     if (!item) return null;
 
     const handleAdd = () => {
-        addToCart(restaurant.id, item, qty, instructions);
+        addToCart(restaurant.id, item, qty, instructions, restaurant?.name || "");
         onClose();
     };
 

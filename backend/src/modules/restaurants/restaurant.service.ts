@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import { Restaurant, type IRestaurant } from '../../models/restaurant.model.js';
+import { CategoryService } from '../categories/category.service.js';
 import { escapeRegex } from '../../utils/regex.js';
 import {
   toOwnerRestaurantDto,
@@ -74,11 +76,21 @@ export class RestaurantService {
   }
 
   /**
-   * Retrieves a single active restaurant by public slug.
+   * Retrieves a single active restaurant by public slug or ID.
    */
-  static async getPublicRestaurantBySlug(slug: string): Promise<PublicRestaurantDto> {
-    const normalizedSlug = slug.toLowerCase().trim();
-    const restaurant = await Restaurant.findOne({ slug: normalizedSlug, status: 'active' }).lean();
+  static async getPublicRestaurantBySlug(slugOrId: string): Promise<PublicRestaurantDto> {
+    const normalized = slugOrId.toLowerCase().trim();
+    const isObjectId = mongoose.Types.ObjectId.isValid(slugOrId);
+
+    const queryConditions: Array<Record<string, unknown>> = [{ slug: normalized }];
+    if (isObjectId) {
+      queryConditions.push({ _id: slugOrId });
+    }
+
+    const restaurant = await Restaurant.findOne({
+      $or: queryConditions,
+      status: 'active',
+    }).lean();
 
     if (!restaurant) {
       const error = new Error('Restaurant not found') as Error & { statusCode?: number };
@@ -141,7 +153,10 @@ export class RestaurantService {
     if (input.isOpen !== undefined) restaurant.isOpen = input.isOpen;
     if (input.hours !== undefined) restaurant.hours = input.hours;
     if (input.timeSlots !== undefined) restaurant.timeSlots = input.timeSlots;
-    if (input.cuisines !== undefined) restaurant.cuisines = input.cuisines;
+    if (input.cuisines !== undefined) {
+      restaurant.cuisines = input.cuisines;
+      void CategoryService.syncCategoriesFromCuisines(input.cuisines);
+    }
     if (input.priceRange !== undefined) restaurant.priceRange = input.priceRange;
     if (input.coverImageUrl !== undefined) restaurant.coverImageUrl = input.coverImageUrl;
     if (input.logoText !== undefined) restaurant.logoText = input.logoText;
@@ -150,4 +165,87 @@ export class RestaurantService {
 
     return toOwnerRestaurantDto(restaurant);
   }
+
+  /**
+   * Queries all restaurants for super admin (all statuses, optional search/pagination).
+   */
+  static async listAdminRestaurants(
+    input: Partial<RestaurantQueryInput> = {}
+  ): Promise<PaginatedResult<OwnerRestaurantDto>> {
+    const page = Math.max(1, input.page || 1);
+    const limit = Math.min(100, Math.max(1, input.limit || 50));
+    const skip = (page - 1) * limit;
+
+    const filter: Record<string, unknown> = {};
+
+    if (input.city) {
+      filter.city = new RegExp(`^${escapeRegex(input.city)}$`, 'i');
+    }
+
+    if (input.cuisine) {
+      filter.cuisines = { $in: [new RegExp(escapeRegex(input.cuisine), 'i')] };
+    }
+
+    if (input.search) {
+      const searchRegex = new RegExp(escapeRegex(input.search), 'i');
+      filter.$or = [
+        { name: searchRegex },
+        { city: searchRegex },
+        { description: searchRegex },
+        { cuisines: { $in: [searchRegex] } },
+      ];
+    }
+
+    const sortBy = input.sortBy || 'createdAt';
+    const sortOrderNum = input.sortOrder === 'asc' ? 1 : -1;
+    const sortObject: Record<string, 1 | -1> = { [sortBy]: sortOrderNum };
+
+    const [total, documents] = await Promise.all([
+      Restaurant.countDocuments(filter),
+      Restaurant.find(filter).sort(sortObject).skip(skip).limit(limit).lean(),
+    ]);
+
+    const data = documents.map((doc) => toOwnerRestaurantDto(doc as unknown as IRestaurant));
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  /**
+   * Updates any restaurant by ID for Super Admin (status, commissionRate, name, etc.).
+   */
+  static async updateRestaurantByAdmin(
+    restaurantId: string,
+    updateData: Partial<IRestaurant>
+  ): Promise<OwnerRestaurantDto> {
+    if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+      const error = new Error('Invalid restaurant ID') as Error & { statusCode?: number };
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      const error = new Error('Restaurant not found') as Error & { statusCode?: number };
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (updateData.status !== undefined) restaurant.status = updateData.status;
+    if (updateData.commissionRate !== undefined) restaurant.commissionRate = updateData.commissionRate;
+    if (updateData.name !== undefined) restaurant.name = updateData.name;
+    if (updateData.description !== undefined) restaurant.description = updateData.description;
+    if (updateData.isOpen !== undefined) restaurant.isOpen = updateData.isOpen;
+
+    await restaurant.save();
+    return toOwnerRestaurantDto(restaurant);
+  }
 }
+

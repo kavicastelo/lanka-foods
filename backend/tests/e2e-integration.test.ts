@@ -201,7 +201,8 @@ describe('Phase 15 — End-to-End Integration & System Verification', () => {
       // 1450 + (350 * 2) = 2150 cents subtotal
       expect(order.subtotal).toBe(2150);
       expect(order.deliveryFee).toBe(390);
-      expect(order.total).toBe(2540);
+      expect(order.serviceFee).toBe(99);
+      expect(order.total).toBe(2639);
 
       createdOrderId = order.id || order._id;
     });

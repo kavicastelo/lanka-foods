@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { config } from './config/index.js';
 import { connectDatabase, disconnectDatabase } from './infrastructure/database/index.js';
+import { CategoryService } from './modules/categories/category.service.js';
 
 async function startServer() {
   const app = await buildApp();
@@ -26,6 +27,9 @@ async function startServer() {
     app.log.info('Connecting to MongoDB database...');
     await connectDatabase();
     app.log.info('MongoDB database connected successfully.');
+
+    app.log.info('Seeding default global categories...');
+    await CategoryService.seedDefaultCategories();
 
     await app.listen({ port: config.PORT, host: config.HOST });
     app.log.info(

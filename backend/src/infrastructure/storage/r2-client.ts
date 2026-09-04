@@ -110,6 +110,31 @@ export class R2StorageService {
   }
 
   /**
+   * Directly uploads buffer object to Cloudflare R2 storage via server S3 client.
+   */
+  static async uploadBuffer(
+    objectKey: string,
+    buffer: Buffer,
+    contentType: string
+  ): Promise<string> {
+    const env = loadEnvConfig();
+    const client = R2StorageService.getClient();
+    const publicUrl = R2StorageService.getPublicUrl(objectKey);
+
+    if (client) {
+      const command = new PutObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: objectKey,
+        ContentType: contentType,
+        Body: buffer,
+      });
+      await client.send(command);
+    }
+
+    return publicUrl;
+  }
+
+  /**
    * Deletes object from Cloudflare R2 storage.
    */
   static async deleteObject(objectKey: string): Promise<boolean> {

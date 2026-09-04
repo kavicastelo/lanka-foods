@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Package, Heart, Star, User, ArrowRight } from "lucide-react";
-import { useMyOrders, useMyReviews, useFavorites, useActiveRestaurants } from "@/hooks/useMarketplaceData";
+import { Package, Heart, Star, User, ArrowRight, MessageSquare } from "lucide-react";
+import { useMyOrders, useMyReviews, useFavorites, useActiveRestaurants, useCreateReview } from "@/hooks/useMarketplaceData";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { menuApi } from "@/api/menuApi";
 import StarRating from "@/components/StarRating";
@@ -35,9 +35,10 @@ export default function CustomerAccount() {
     const { user } = useMarketplaceUser();
     const [tab, setTab] = useState("orders");
     const [favMenuItems, setFavMenuItems] = useState([]);
+    const [selectedFeedbackOrder, setSelectedFeedbackOrder] = useState(null);
 
     const displayName = user?.user?.fullName || user?.user?.email || "User";
-    const userPhone = user?.phone || user?.data?.phone || "";
+    const userPhone = user?.user?.phone || user?.data?.phone || "";
 
     const favRestaurants = restaurants.filter((r) => favoriteRestaurants.includes(r.id));
 
@@ -95,8 +96,16 @@ export default function CustomerAccount() {
                                         </div>
                                     </div>
                                     <div className="mt-3 text-sm text-muted-foreground">{o.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</div>
-                                    <div className="mt-4 flex gap-2">
-                                        <Link to={`/order/${o.id}`} className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-700 text-primary-foreground">Track order <ArrowRight className="h-3.5 w-3.5" /></Link>
+                                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                                        <Link to={`/order/${o.id}`} className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-700 text-primary-foreground hover:opacity-90">Track order <ArrowRight className="h-3.5 w-3.5" /></Link>
+                                        {o.status === "completed" && (
+                                            <button
+                                                onClick={() => setSelectedFeedbackOrder({ order: o, restaurant: r })}
+                                                className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-4 py-2 text-xs font-700 hover:border-primary"
+                                            >
+                                                <MessageSquare className="h-3.5 w-3.5 text-primary" /> Leave Feedback
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -140,17 +149,45 @@ export default function CustomerAccount() {
 
                 {tab === "reviews" && (
                     <div className="space-y-4">
-                        {myReviews.length === 0 && <Empty text="You haven't submitted any reviews yet." />}
+                        {myReviews.length === 0 && <Empty text="You haven't submitted any reviews or feedback yet." />}
                         {myReviews.map((r) => {
-                            const rest = restaurants.find((x) => x.id === r.restaurantId);
+                            const rest = restaurants.find((x) => String(x.id) === String(r.restaurantId) || String(x._id) === String(r.restaurantId)) || {};
                             return (
-                                <div key={r.id} className="rounded-2xl border border-border bg-card p-5">
-                                    <div className="flex items-center justify-between">
-                                        <Link to={`/restaurant/${rest?.slug}`} className="font-700">{rest?.name}</Link>
-                                        <StarRating value={r.rating} size={14} />
+                                <div key={r.id || r._id} className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-spice-gradient font-display text-sm font-700 text-white">
+                                                {rest?.logoText || rest?.name?.slice(0, 2)?.toUpperCase() || "RE"}
+                                            </div>
+                                            <div>
+                                                {rest?.slug ? (
+                                                    <Link to={`/restaurant/${rest.slug}`} className="font-700 hover:text-primary transition">
+                                                        {rest.name || "Restaurant"}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="font-700">{rest.name || "Restaurant"}</span>
+                                                )}
+                                                <div className="text-xs text-muted-foreground">{r.date}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 bg-secondary/30 px-3 py-1.5 rounded-full">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-xs text-muted-foreground font-600">Overall:</span>
+                                                <StarRating value={r.rating} size={14} />
+                                            </div>
+                                            {r.foodRating && (
+                                                <div className="flex items-center gap-1 border-l border-border pl-3">
+                                                    <span className="text-xs text-muted-foreground font-600">Food:</span>
+                                                    <StarRating value={r.foodRating} size={14} />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className="mt-2 text-sm text-muted-foreground">"{r.text}"</p>
-                                    <div className="mt-2 text-xs text-muted-foreground">{r.date}</div>
+                                    {r.text ? (
+                                        <p className="text-sm leading-relaxed text-foreground/90 italic">"{r.text}"</p>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground italic">No written comment provided.</p>
+                                    )}
                                 </div>
                             );
                         })}
@@ -162,10 +199,79 @@ export default function CustomerAccount() {
                         <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 sm:grid-cols-2">
                             <ProfileField label="Full name" value={displayName} />
                             <ProfileField label="Phone" value={userPhone || "—"} />
-                            <ProfileField label="Email" value={user?.email || "—"} />
+                            <ProfileField label="Email" value={user?.user?.email || "—"} />
                         </div>
                     </div>
                 )}
+            </div>
+
+            {selectedFeedbackOrder && (
+                <FeedbackModal
+                    order={selectedFeedbackOrder.order}
+                    restaurant={selectedFeedbackOrder.restaurant}
+                    onClose={() => setSelectedFeedbackOrder(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+function FeedbackModal({ order, restaurant, onClose }) {
+    const createReview = useCreateReview();
+    const [rating, setRating] = useState(5);
+    const [foodRating, setFoodRating] = useState(5);
+    const [text, setText] = useState("");
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        createReview.mutate(
+            { orderId: order.id, rating, foodRating, text },
+            {
+                onSuccess: () => {
+                    alert("Thank you for your feedback!");
+                    onClose();
+                },
+                onError: (err) => {
+                    const error = /** @type {any} */ (err);
+                    alert(error?.response?.data?.error || error?.message || "Failed to submit feedback");
+                },
+            }
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-display text-lg font-700">Leave Feedback for {restaurant?.name || "Order"}</h3>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-sm font-600">Overall Rating</label>
+                        <StarRating value={rating} size={24} interactive onChange={setRating} className="mt-1" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-600">Food Quality</label>
+                        <StarRating value={foodRating} size={24} interactive onChange={setFoodRating} className="mt-1" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-600">Your Comments & Feedback</label>
+                        <textarea
+                            value={text}
+                            onChange={(e) => setText(e.target.value)}
+                            rows={3}
+                            placeholder="Share your thoughts about your meal and service..."
+                            className="mt-1 w-full resize-none rounded-xl border border-border bg-secondary/30 p-3 text-sm outline-none focus:border-primary"
+                        />
+                    </div>
+                    <div className="flex gap-2 justify-end pt-2">
+                        <button type="button" onClick={onClose} className="rounded-full border border-border px-4 py-2 text-xs font-700">Cancel</button>
+                        <button type="submit" disabled={createReview.isPending} className="rounded-full bg-primary px-5 py-2 text-xs font-700 text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                            {createReview.isPending ? "Submitting..." : "Submit Feedback"}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

@@ -7,6 +7,7 @@ import { categoryRoutes } from '../modules/categories/category.routes.js';
 import { dashboardRoutes } from '../modules/dashboard/dashboard.routes.js';
 import { favoriteRoutes } from '../modules/favorites/favorite.routes.js';
 import { financialRoutes } from '../modules/financials/financial.routes.js';
+import { invoiceRoutes } from '../modules/invoices/invoice.routes.js';
 import { mediaRoutes } from '../modules/media/media.routes.js';
 import { menuRoutes } from '../modules/menu/menu.routes.js';
 import { orderRoutes } from '../modules/orders/order.routes.js';
@@ -30,6 +31,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
   await fastify.register(favoriteRoutes);
   await fastify.register(applicationRoutes);
   await fastify.register(financialRoutes);
+  await fastify.register(invoiceRoutes);
   await fastify.register(dashboardRoutes);
   await fastify.register(mediaRoutes);
 

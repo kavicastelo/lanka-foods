@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { config } from '../../config/index.js';
 import { authenticate } from '../../middleware/authenticate.js';
+import { authorize } from '../../middleware/authorize.js';
 import { loginSchema, registerSchema } from './auth.schemas.js';
 import { AuthService } from './auth.service.js';
 import type { JWTPayload } from './auth.types.js';
@@ -127,6 +128,32 @@ export async function authRoutes(fastify: FastifyInstance) {
           isActive: user.isActive,
         },
       });
+    }
+  );
+
+  // GET /api/admin/users (Super Admin list all registered users)
+  fastify.get(
+    '/api/admin/users',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (_request, reply) => {
+      const users = await AuthService.listAdminUsers();
+      return reply.status(200).send({ users });
+    }
+  );
+
+  // PATCH /api/admin/users/:id/status (Super Admin update active/suspended status)
+  fastify.patch(
+    '/api/admin/users/:id/status',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const { isActive } = request.body as { isActive: boolean };
+      await AuthService.updateUserStatus(id, isActive);
+      return reply.status(200).send({ message: 'User status updated successfully' });
     }
   );
 }
