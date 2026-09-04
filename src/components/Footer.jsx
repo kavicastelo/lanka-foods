@@ -17,38 +17,38 @@ export default function Footer() {
                         The home of authentic Sri Lankan food in Finland. Discover restaurants, home chefs and food stores near you.
                     </p>
                     <div className="mt-5 flex gap-3">
-                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="#"><Instagram className="h-4 w-4" /></a>
-                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="#"><Facebook className="h-4 w-4" /></a>
+                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="https://instagram.com" target="_blank" rel="noreferrer"><Instagram className="h-4 w-4" /></a>
+                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="https://facebook.com" target="_blank" rel="noreferrer"><Facebook className="h-4 w-4" /></a>
                     </div>
                 </div>
                 <div>
                     <h4 className="text-sm font-700">Marketplace</h4>
                     <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
                         <li><Link to="/restaurants" className="hover:text-primary">Browse restaurants</Link></li>
-                        <li><Link to="/restaurants" className="hover:text-primary">Categories</Link></li>
-                        <li><Link to="/partner" className="hover:text-primary">List your food business</Link></li>
-                        <li><Link to="/account" className="hover:text-primary">My orders</Link></li>
+                        <li><Link to="/restaurants" className="hover:text-primary">Categories & Cuisines</Link></li>
+                        <li><Link to="/for-partners" className="hover:text-primary">List your food business</Link></li>
+                        <li><Link to="/account" className="hover:text-primary">My account & orders</Link></li>
                     </ul>
                 </div>
                 <div>
                     <h4 className="text-sm font-700">For Partners</h4>
                     <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-                        <li><Link to="/restaurant/colombo-spice-house/admin" className="hover:text-primary">Restaurant dashboard</Link></li>
-                        <li><Link to="/partner" className="hover:text-primary">Become a partner</Link></li>
-                        <li><Link to="/admin" className="hover:text-primary">Platform admin</Link></li>
+                        <li><Link to="/for-partners" className="hover:text-primary">Why partner with us</Link></li>
+                        <li><Link to="/partner" className="hover:text-primary">Partner application form</Link></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 className="text-sm font-700">Company</h4>
+                    <h4 className="text-sm font-700">Company & Legal</h4>
                     <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-                        <li><a href="#" className="hover:text-primary">About us</a></li>
-                        <li><a href="#" className="hover:text-primary">Contact</a></li>
-                        <li><a href="#" className="hover:text-primary">Terms & Privacy</a></li>
+                        <li><Link to="/about" className="hover:text-primary">About us</Link></li>
+                        <li><Link to="/contact" className="hover:text-primary">Contact us</Link></li>
+                        <li><Link to="/terms" className="hover:text-primary">Terms & Conditions</Link></li>
+                        <li><Link to="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
                     </ul>
                 </div>
             </div>
             <div className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-                © {new Date().getFullYear()} LankaEats Finland — Mock MVP. Made with 🤍 for Sri Lankan food lovers.
+                © {new Date().getFullYear()} LankaEats Finland. Made with 🤍 for Sri Lankan food lovers.
             </div>
         </footer>
     );

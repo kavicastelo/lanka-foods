@@ -19,6 +19,11 @@ import OrderConfirmation from '@/pages/OrderConfirmation';
 import OrderTracking from '@/pages/OrderTracking';
 import CustomerAccount from '@/pages/CustomerAccount';
 import BecomePartner from '@/pages/BecomePartner';
+import AboutUs from '@/pages/AboutUs';
+import ForPartners from '@/pages/ForPartners';
+import TermsAndConditions from '@/pages/TermsAndConditions';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import ContactUs from '@/pages/ContactUs';
 import SignIn from '@/pages/SignIn';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -64,6 +69,11 @@ const AuthenticatedApp = () => {
                     <Route path="/order/:id" element={<OrderTracking />} />
                 </Route>
                 <Route path="/partner" element={<BecomePartner />} />
+                <Route path="/about" element={<AboutUs />} />
+                <Route path="/for-partners" element={<ForPartners />} />
+                <Route path="/terms" element={<TermsAndConditions />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/contact" element={<ContactUs />} />
                 <Route path="/account" element={<RoleGuard roles={["CUSTOMER"]}><CustomerAccount /></RoleGuard>} />
             </Route>
 

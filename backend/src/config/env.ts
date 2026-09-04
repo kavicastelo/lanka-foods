@@ -25,6 +25,14 @@ const envSchema = z.object({
   R2_BUCKET_NAME: z.string().optional().default('lankaeats-media'),
   R2_PUBLIC_BASE_URL: z.string().optional().default('https://media.lankaeats.fi'),
   R2_ENDPOINT: z.string().optional().default(''),
+  // Zoho Mail SMTP Configurations
+  ZOHO_SMTP_HOST: z.string().optional().default('smtp.zoho.eu'),
+  ZOHO_SMTP_PORT: z.coerce.number().int().positive().default(465),
+  ZOHO_SMTP_SECURE: z.coerce.boolean().default(true),
+  ZOHO_SMTP_USER: z.string().optional().default(''),
+  ZOHO_SMTP_PASS: z.string().optional().default(''),
+  ZOHO_FROM_EMAIL: z.string().optional().default('support@lankaeats.fi'),
+  CONTACT_RECEIVER_EMAIL: z.string().optional().default('support@lankaeats.fi'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
