@@ -1,3 +1,4 @@
+import pino from 'pino';
 import { config } from '../../config/index.js';
 
 export const loggerOptions = {
@@ -25,3 +26,5 @@ export const loggerOptions = {
     remove: true,
   },
 };
+
+export const logger = pino(loggerOptions);
