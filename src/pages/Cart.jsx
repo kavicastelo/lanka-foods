@@ -2,16 +2,17 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Minus, Trash2, ShoppingBag, ArrowLeft, Bike, Store } from "lucide-react";
 import { useMarketplace } from "@/context/MarketplaceContext";
-import { useRestaurantById } from "@/hooks/useMarketplaceData";
+import { useRestaurantById, useCommissionConfig } from "@/hooks/useMarketplaceData";
 import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
 
 export default function Cart() {
     const { cart, cartSubtotal, updateQty, removeItem, clearCart } = useMarketplace();
     const { data: cartRestaurant } = useRestaurantById(cart.restaurantId);
+    const { data: commissionConfig } = useCommissionConfig();
     const navigate = useNavigate();
 
-    const serviceFee = cartSubtotal ? 0.99 : 0;
+    const serviceFee = cartSubtotal ? (commissionConfig?.serviceFee ?? 0.99) : 0;
     const total = cartSubtotal + serviceFee;
 
     if (cart.items.length === 0) {
@@ -44,7 +45,7 @@ export default function Cart() {
                     <div className="overflow-hidden rounded-2xl border border-border bg-card">
                         {cart.items.map((item, i) => (
                             <div key={item.id} className={`flex gap-4 p-4 ${i > 0 ? "border-t border-border" : ""}`}>
-                                <Image src={item.image} alt={item.name} fittingType="fill" className="h-20 w-20 shrink-0 rounded-xl" />
+                                <Image src={item.image || item.imageUrl || item.image_url} alt={item.name} fittingType="fill" className="h-20 w-20 shrink-0 rounded-xl" />
                                 <div className="flex flex-1 flex-col">
                                     <div className="flex items-start justify-between">
                                         <div>

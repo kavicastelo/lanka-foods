@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Star, MapPin, Clock, Phone, Bike, Store, Heart, Plus, Leaf, Check, ChevronRight, Settings } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Star, MapPin, Clock, Phone, Bike, Store, Heart, Plus, Leaf, Check, ChevronRight, Settings, MessageSquare } from "lucide-react";
 import { useMarketplace } from "@/context/MarketplaceContext";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
-import { useRestaurantBySlug, useRestaurantMenu, useRestaurantReviews, useFavorites, computeRestaurantStats } from "@/hooks/useMarketplaceData";
+import { useRestaurantBySlug, useRestaurantMenu, useRestaurantReviews, useFavorites, computeRestaurantStats, useCreateReview } from "@/hooks/useMarketplaceData";
 import { Image } from "@/components/ui/image";
 import StarRating from "@/components/StarRating";
 import FoodItemModal from "@/components/FoodItemModal";
@@ -11,12 +11,14 @@ import { cn } from "@/lib/utils";
 
 export default function RestaurantStorefront() {
     const { slug } = useParams();
+    const navigate = useNavigate();
     const { addToCart } = useMarketplace();
     const { favoriteRestaurants, toggleFavoriteRestaurant } = useFavorites();
     const { user, marketplaceRole } = useMarketplaceUser();
     const { data: restaurant, isLoading } = useRestaurantBySlug(slug);
     const [activeItem, setActiveItem] = useState(null);
     const [activeCat, setActiveCat] = useState(null);
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
     const { data: categories = [] } = useRestaurantMenu(slug);
     const { data: reviews = [] } = useRestaurantReviews(restaurant?.id);
@@ -42,6 +44,14 @@ export default function RestaurantStorefront() {
         document.getElementById(`cat-${name}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
+    const handleOpenFeedback = () => {
+        if (!user) {
+            navigate("/login");
+            return;
+        }
+        setShowFeedbackModal(true);
+    };
+
     return (
         <div>
             {/* Cover */}
@@ -57,8 +67,8 @@ export default function RestaurantStorefront() {
                 </div>
             </div>
 
-            <div className="mx-auto -mt-20 max-w-7xl px-6">
-                <div className="rounded-3xl border border-border bg-card p-6 shadow-lg sm:p-8">
+            <div className="relative z-10 mx-auto -mt-16 sm:-mt-20 max-w-7xl px-4 sm:px-6">
+                <div className="rounded-3xl border border-border bg-card p-5 sm:p-8 shadow-lg">
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                         <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-spice-gradient font-display text-3xl font-700 text-white shadow-warm">
                             {restaurant.logoText}
@@ -130,28 +140,28 @@ export default function RestaurantStorefront() {
                                 <h2 className="font-display text-2xl font-600">{c.name}</h2>
                                 <div className="mt-4 grid gap-4">
                                     {c.items.map((item) => (
-                                        <div key={item.id} className="flex gap-4 rounded-2xl border border-border bg-card p-3 transition hover:shadow-sm">
-                                            <button onClick={() => setActiveItem({ ...item, categoryName: c.name })} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-28">
+                                        <div key={item.id} className="flex gap-3 sm:gap-4 rounded-2xl border border-border bg-card p-3 sm:p-4 transition hover:shadow-sm">
+                                            <button onClick={() => setActiveItem({ ...item, categoryName: c.name })} className="relative h-20 w-20 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-xl">
                                                 <Image src={item.image} alt={item.name} fittingType="fill" className="h-full w-full" />
                                                 {!item.available && <div className="absolute inset-0 grid place-items-center bg-black/55 text-xs font-600 text-white">Unavailable</div>}
                                             </button>
-                                            <div className="flex flex-1 flex-col">
+                                            <div className="flex flex-1 min-w-0 flex-col">
                                                 <div className="flex items-start justify-between gap-2">
-                                                    <button onClick={() => setActiveItem({ ...item, categoryName: c.name })} className="text-left">
+                                                    <button onClick={() => setActiveItem({ ...item, categoryName: c.name })} className="min-w-0 flex-1 text-left">
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="font-600">{item.name}</span>
-                                                            {item.veg && <Leaf className="h-3.5 w-3.5 text-green-600" />}
+                                                            <span className="font-600 text-sm sm:text-base line-clamp-1">{item.name}</span>
+                                                            {item.veg && <Leaf className="h-3.5 w-3.5 shrink-0 text-green-600" />}
                                                         </div>
-                                                        <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{item.desc}</p>
+                                                        <p className="mt-0.5 line-clamp-2 text-xs sm:text-sm text-muted-foreground">{item.desc}</p>
                                                     </button>
-                                                    <span className="font-display text-lg font-700 text-primary">€{item.price.toFixed(2)}</span>
+                                                    <span className="shrink-0 font-display text-base sm:text-lg font-700 text-primary">€{item.price.toFixed(2)}</span>
                                                 </div>
-                                                <div className="mt-auto flex items-center justify-between pt-2">
-                                                    {item.popular && <span className="text-xs font-600 text-accent">★ Popular choice</span>}
+                                                <div className="mt-auto flex items-center justify-between pt-2 gap-2">
+                                                    {item.popular ? <span className="text-[11px] sm:text-xs font-600 text-accent truncate">★ Popular choice</span> : <span />}
                                                     <button
-                                                        onClick={() => addToCart(restaurant.id, { ...item, categoryName: c.name }, 1)}
+                                                        onClick={() => addToCart(restaurant.id, { ...item, categoryName: c.name }, 1, "", restaurant.name)}
                                                         disabled={!item.available}
-                                                        className="ml-auto flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-xs font-700 text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
+                                                        className="ml-auto flex items-center gap-1 shrink-0 rounded-full bg-primary px-3 sm:px-4 py-1.5 text-xs font-700 text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
                                                     >
                                                         <Plus className="h-3.5 w-3.5" /> Add
                                                     </button>
@@ -167,7 +177,15 @@ export default function RestaurantStorefront() {
                     {/* Reviews sidebar */}
                     <aside className="lg:sticky lg:top-32 lg:h-fit">
                         <div className="rounded-2xl border border-border bg-card p-5">
-                            <h3 className="font-display text-lg font-600">Ratings & reviews</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-display text-lg font-600">Ratings & reviews</h3>
+                                <button
+                                    onClick={handleOpenFeedback}
+                                    className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-700 text-primary-foreground hover:opacity-90"
+                                >
+                                    <MessageSquare className="h-3.5 w-3.5" /> Write Review
+                                </button>
+                            </div>
                             <div className="mt-3 flex items-center gap-3">
                                 <div className="font-display text-4xl font-700">{stats.rating > 0 ? stats.rating.toFixed(1) : "—"}</div>
                                 <div>
@@ -210,6 +228,68 @@ export default function RestaurantStorefront() {
 
             <div className="h-16" />
             {activeItem && <FoodItemModal item={activeItem} restaurant={restaurant} onClose={() => setActiveItem(null)} />}
+            {showFeedbackModal && <StorefrontReviewModal restaurant={restaurant} onClose={() => setShowFeedbackModal(false)} />}
+        </div>
+    );
+}
+
+function StorefrontReviewModal({ restaurant, onClose }) {
+    const createReview = useCreateReview();
+    const [rating, setRating] = useState(5);
+    const [foodRating, setFoodRating] = useState(5);
+    const [text, setText] = useState("");
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        createReview.mutate(
+            { restaurantId: restaurant.id, rating, foodRating, text },
+            {
+                onSuccess: () => {
+                    alert("Thank you for your feedback!");
+                    onClose();
+                },
+                onError: (err) => {
+                    const error = /** @type {any} */ (err);
+                    alert(error?.response?.data?.error || error?.message || "Failed to submit review");
+                },
+            }
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-display text-lg font-700">Write Review for {restaurant?.name}</h3>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-sm font-600">Overall Rating</label>
+                        <StarRating value={rating} size={24} interactive onChange={setRating} className="mt-1" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-600">Food Rating</label>
+                        <StarRating value={foodRating} size={24} interactive onChange={setFoodRating} className="mt-1" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-600">Your Feedback</label>
+                        <textarea
+                            value={text}
+                            onChange={(e) => setText(e.target.value)}
+                            rows={3}
+                            placeholder="Share details of your experience with this restaurant..."
+                            className="mt-1 w-full resize-none rounded-xl border border-border bg-secondary/30 p-3 text-sm outline-none focus:border-primary"
+                        />
+                    </div>
+                    <div className="flex gap-2 justify-end pt-2">
+                        <button type="button" onClick={onClose} className="rounded-full border border-border px-4 py-2 text-xs font-700">Cancel</button>
+                        <button type="submit" disabled={createReview.isPending} className="rounded-full bg-primary px-5 py-2 text-xs font-700 text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                            {createReview.isPending ? "Submitting..." : "Submit Review"}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }

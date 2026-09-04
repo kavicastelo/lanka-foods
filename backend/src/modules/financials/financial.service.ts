@@ -20,6 +20,8 @@ export interface RestaurantFinancialSummaryDto {
   summary: {
     totalGross: number;
     totalCommission: number;
+    pendingCommission: number;
+    settledCommission: number;
     totalNet: number;
     pendingCount: number;
     settledCount: number;
@@ -49,12 +51,26 @@ export class FinancialService {
     adminUserId: string,
     input: UpdateCommissionConfigInput
   ): Promise<CommissionConfigDto> {
+    if (input.restaurantId && typeof input.rate === 'number' && mongoose.Types.ObjectId.isValid(input.restaurantId)) {
+      await Restaurant.findByIdAndUpdate(input.restaurantId, { commissionRate: input.rate });
+    }
+
     let config = await CommissionConfig.findOne({ key: 'default_config' });
     if (!config) {
       config = new CommissionConfig({ key: 'default_config' });
     }
 
-    config.defaultRate = input.defaultRate;
+    if (typeof input.defaultRate === 'number') {
+      config.defaultRate = input.defaultRate;
+    }
+
+    if (typeof input.serviceFee === 'number') {
+      const cents = Number.isInteger(input.serviceFee) && input.serviceFee >= 50
+        ? input.serviceFee
+        : Math.round(input.serviceFee * 100);
+      config.serviceFee = cents;
+    }
+
     config.updatedBy = new mongoose.Types.ObjectId(adminUserId);
     config.updatedDate = new Date();
     await config.save();
@@ -96,6 +112,8 @@ export class FinancialService {
     // Monetary Calculation (Deterministic minor-unit integer arithmetic in cents)
     const commissionableAmount = order.subtotal;
     const commissionAmount = Math.round((commissionableAmount * effectiveRate) / 100);
+    const serviceFee = order.serviceFee || 0;
+    const platformFeeTotal = commissionAmount + serviceFee;
     const restaurantNetAmount = Math.max(0, commissionableAmount - commissionAmount);
 
     try {
@@ -106,10 +124,12 @@ export class FinancialService {
         customerId: order.customerId,
         orderSubtotal: order.subtotal,
         deliveryFee: order.deliveryFee,
+        serviceFee,
         orderTotal: order.total,
         commissionableAmount,
         commissionRate: effectiveRate,
         commissionAmount,
+        platformFeeTotal,
         restaurantNetAmount,
         status: 'PENDING',
       });
@@ -198,16 +218,25 @@ export class FinancialService {
 
     let totalGross = 0;
     let totalCommission = 0;
+    let pendingCommission = 0;
+    let settledCommission = 0;
     let totalNet = 0;
     let pendingCount = 0;
     let settledCount = 0;
 
     for (const r of records) {
       totalGross += r.commissionableAmount;
-      totalCommission += r.commissionAmount;
+      const platformFee = r.platformFeeTotal ?? (r.commissionAmount + (r.serviceFee ?? 0));
+      totalCommission += platformFee;
       totalNet += r.restaurantNetAmount;
-      if (r.status === 'PENDING') pendingCount++;
-      if (r.status === 'SETTLED') settledCount++;
+      if (r.status === 'PENDING') {
+        pendingCount++;
+        pendingCommission += platformFee;
+      }
+      if (r.status === 'SETTLED') {
+        settledCount++;
+        settledCommission += platformFee;
+      }
     }
 
     return {
@@ -215,6 +244,8 @@ export class FinancialService {
       summary: {
         totalGross,
         totalCommission,
+        pendingCommission,
+        settledCommission,
         totalNet,
         pendingCount,
         settledCount,

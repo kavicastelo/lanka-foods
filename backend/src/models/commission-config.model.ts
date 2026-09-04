@@ -3,6 +3,7 @@ import { Schema, model, type Document, type Types } from 'mongoose';
 export interface ICommissionConfig extends Document {
   key: string;
   defaultRate: number; // Percentage value between 0 and 50 (e.g. 10)
+  serviceFee: number; // Stored in integer cents, e.g. 99 for €0.99
   updatedBy?: Types.ObjectId;
   updatedDate: Date;
   createdAt: Date;
@@ -22,6 +23,11 @@ const commissionConfigSchema = new Schema<ICommissionConfig>(
       min: 0,
       max: 50,
       default: 10,
+    },
+    serviceFee: {
+      type: Number,
+      min: 0,
+      default: 99,
     },
     updatedBy: {
       type: Schema.Types.ObjectId,

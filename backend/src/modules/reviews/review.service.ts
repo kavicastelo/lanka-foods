@@ -200,4 +200,37 @@ export class ReviewService {
       },
     };
   }
+
+  /**
+   * Returns all reviews across the platform for Super Admin moderation.
+   */
+  static async getAllReviews(): Promise<ReviewResponseDto[]> {
+    const documents = await Review.find().sort({ createdAt: -1 }).lean();
+    return documents.map((doc) => toReviewResponseDto(doc as unknown as IReview));
+  }
+
+  /**
+   * Moderates/deletes a review (Super Admin only).
+   * Automatically updates restaurant average rating summary.
+   */
+  static async deleteReview(reviewId: string): Promise<void> {
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      const error = new Error('Invalid review ID format') as Error & { statusCode?: number };
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      const error = new Error('Review not found') as Error & { statusCode?: number };
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const restaurantId = review.restaurantId.toString();
+    await Review.findByIdAndDelete(review._id);
+
+    // Recalculate rating summary for affected restaurant
+    await ReviewService.updateRestaurantRatingSummary(restaurantId);
+  }
 }

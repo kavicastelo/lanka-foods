@@ -11,6 +11,11 @@ export const restaurantsApi = {
     return res.restaurant || res.data?.restaurant || res;
   },
 
+  async getRestaurantById(id) {
+    const res = /** @type {any} */ (await apiClient.get(`/api/restaurants/${id}`));
+    return res.restaurant || res.data?.restaurant || res;
+  },
+
   async getMyRestaurant() {
     const res = /** @type {any} */ (await apiClient.get('/api/restaurant/me'));
     return res.restaurant || res.data?.restaurant || res;

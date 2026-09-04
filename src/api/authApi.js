@@ -34,4 +34,15 @@ export const authApi = {
   logout() {
     tokenStorage.removeToken();
   },
+
+  async getAdminUsers() {
+    const res = await apiClient.get('/api/admin/users');
+    const data = res.data || res;
+    return data.users || (Array.isArray(data) ? data : []);
+  },
+
+  async updateUserStatus(userId, isActive) {
+    const res = await apiClient.patch(`/api/admin/users/${userId}/status`, { isActive });
+    return res.data || res;
+  },
 };

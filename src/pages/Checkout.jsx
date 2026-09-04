@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Check, Store, Bike, Clock, CreditCard, Smartphone, Banknote, ArrowRight, ArrowLeft } from "lucide-react";
 import { useMarketplace } from "@/context/MarketplaceContext";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
-import { usePlaceOrder, useRestaurantById } from "@/hooks/useMarketplaceData";
+import { usePlaceOrder, useRestaurantById, useCommissionConfig } from "@/hooks/useMarketplaceData";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +16,9 @@ export default function Checkout() {
     const [step, setStep] = useState(0);
     const placeOrderMutation = usePlaceOrder();
 
-    // Fetch restaurant data from the database using the cart's restaurantId
+    // Fetch restaurant data and platform config
     const { data: restaurant } = useRestaurantById(cart.restaurantId);
+    const { data: commissionConfig } = useCommissionConfig();
 
     const [type, setType] = useState("pickup");
     const [when, setWhen] = useState("today");
@@ -36,7 +37,7 @@ export default function Checkout() {
     }
 
     const deliveryFee = type === "delivery" ? restaurant.deliveryFee : 0;
-    const serviceFee = 0.99;
+    const serviceFee = commissionConfig?.serviceFee ?? 0.99;
     const total = cartSubtotal + deliveryFee + serviceFee;
 
     const slots = restaurant.timeSlots || [];

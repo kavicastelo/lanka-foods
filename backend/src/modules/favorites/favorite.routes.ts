@@ -9,7 +9,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/favorites',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -27,7 +27,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/favorites/toggle',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -55,7 +55,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/favorites/status',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -83,7 +83,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/favorites/restaurants/:restaurantId',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -102,7 +102,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.delete(
     '/api/favorites/restaurants/:restaurantId',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -121,7 +121,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/favorites/menu-items/:menuItemId',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -140,7 +140,7 @@ export async function favoriteRoutes(fastify: FastifyInstance) {
   fastify.delete(
     '/api/favorites/menu-items/:menuItemId',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {

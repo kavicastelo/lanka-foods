@@ -42,7 +42,7 @@ export async function orderRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/orders/my-orders',
     {
-      preHandler: [authenticate, authorize(['CUSTOMER', 'SUPER_ADMIN'])],
+      preHandler: [authenticate, authorize(['CUSTOMER', 'RESTAURANT_ADMIN', 'SUPER_ADMIN'])],
     },
     async (request, reply) => {
       if (!request.user) {
@@ -147,4 +147,21 @@ export async function orderRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ order });
     }
   );
+
+  // GET /api/admin/orders (Authenticated Super Admin query for all platform orders)
+  fastify.get(
+    '/api/admin/orders',
+    {
+      preHandler: [authenticate, authorize(['SUPER_ADMIN'])],
+    },
+    async (request, reply) => {
+      const parseResult = restaurantOrdersQuerySchema.safeParse(request.query);
+      const query = parseResult.success
+        ? parseResult.data
+        : { page: 1, limit: 100 };
+      const result = await OrderService.getAllAdminOrders(query);
+      return reply.status(200).send(result);
+    }
+  );
 }
+

@@ -10,16 +10,31 @@ import { reviewsApi } from "@/api/reviewsApi";
 import { favoritesApi } from "@/api/favoritesApi";
 import { applicationsApi } from "@/api/applicationsApi";
 import { financialsApi } from "@/api/financialsApi";
+import { invoicesApi } from "@/api/invoicesApi";
 import { dashboardApi } from "@/api/dashboardApi";
+import { authApi } from "@/api/authApi";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 
 // --- Field mapping: DB & DTO format → frontend legacy props (keeps components unchanged) ---
 
 export function mapRestaurant(r) {
     if (!r) return null;
+    const rating = Number(r.ratingAverage ?? r.rating ?? r.rating_average ?? 0) || 0;
+    const reviewCount = Number(r.reviewCount ?? r.review_count ?? 0) || 0;
+    const rawCuisines = r.cuisines || r.cuisine;
+    const cuisines = Array.isArray(rawCuisines)
+        ? rawCuisines.map((c) => String(c).trim()).filter(Boolean)
+        : typeof rawCuisines === "string"
+        ? rawCuisines.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+
     return {
         ...r,
         id: r.id || r._id,
+        rating,
+        ratingAverage: rating,
+        reviewCount,
+        cuisines,
         cover: r.coverImageUrl || r.cover_image_url || r.cover,
         coverImageUrl: r.coverImageUrl || r.cover_image_url || r.cover,
         logoText: r.logoText || r.logo_text,
@@ -35,41 +50,80 @@ export function mapRestaurant(r) {
 
 export function mapMenuItem(i) {
     if (!i) return null;
+    const rawPrice = typeof i.price === "number" ? i.price : 0;
+    const price = Number.isInteger(rawPrice) && rawPrice >= 50 ? rawPrice / 100 : rawPrice;
     return {
         ...i,
         id: i.id || i._id,
-        desc: i.description || i.desc,
-        image: i.imageUrl || i.image_url || i.image,
-        imageUrl: i.imageUrl || i.image_url || i.image,
+        desc: i.description || i.desc || "",
+        image: i.imageUrl || i.image_url || i.image || "",
+        imageUrl: i.imageUrl || i.image_url || i.image || "",
         veg: i.isVegetarian ?? i.is_vegetarian ?? i.veg ?? false,
         available: i.isAvailable ?? i.is_available ?? i.available ?? true,
         popular: i.isPopular ?? i.is_popular ?? i.popular ?? false,
+        price,
     };
 }
 
 export function mapOrder(o) {
     if (!o) return null;
+    const parseMoney = (val) => {
+        if (typeof val !== "number") return 0;
+        return Number.isInteger(val) && val >= 50 ? val / 100 : val;
+    };
+
+    const total = parseMoney(o.total ?? o.totalCents);
+    const subtotal = parseMoney(o.subtotal ?? o.subtotalCents);
+    const deliveryFee = parseMoney(o.deliveryFee ?? o.deliveryFeeCents);
+
+    const orderNum = o.orderNumber || o.order_number || o.id || o._id;
+    const custName = o.customerName || o.customer_name || o.customer || "";
+    const delType = o.deliveryType || o.delivery_type || o.type || "delivery";
+    const schedDate = o.scheduledDate || o.scheduled_date || (o.placedAt ? new Date(o.placedAt).toISOString().slice(0, 10) : o.date || "");
+    const schedTime = o.scheduledTime || o.scheduled_time || o.slot || "";
+    const delAddress = o.deliveryAddress || o.delivery_address || o.address || "";
+
     return {
         ...o,
         id: o.id || o._id,
-        orderNumber: o.orderNumber || o.order_number,
+        orderNumber: orderNum,
+        order_number: orderNum,
         restaurantId: o.restaurantId || o.restaurant_id,
-        customer: o.customerName || o.customer_name || o.customer,
-        type: o.deliveryType || o.delivery_type || o.type || "delivery",
-        date: o.placedAt ? new Date(o.placedAt).toISOString().slice(0, 10) : o.scheduled_date || o.date,
-        slot: o.scheduledTime || o.scheduled_time || o.slot,
-        address: o.deliveryAddress || o.delivery_address || o.address,
-        total: typeof o.total === "number" ? o.total : (o.totalCents ? o.totalCents / 100 : 0),
-        subtotal: typeof o.subtotal === "number" ? o.subtotal : (o.subtotalCents ? o.subtotalCents / 100 : 0),
-        deliveryFee: typeof o.deliveryFee === "number" ? o.deliveryFee : (o.deliveryFeeCents ? o.deliveryFeeCents / 100 : 0),
-        items: (o.items || []).map((item) => ({
-            name: item.nameSnapshot || item.name,
-            qty: item.quantity || item.qty,
-            price: typeof item.unitPrice === "number" ? item.unitPrice : (item.unitPriceCents ? item.unitPriceCents / 100 : item.price),
-            instructions: item.instructions || "",
-        })),
+        restaurant_id: o.restaurantId || o.restaurant_id,
+        customer: custName,
+        customerName: custName,
+        customer_name: custName,
+        type: delType,
+        deliveryType: delType,
+        delivery_type: delType,
+        date: schedDate,
+        scheduledDate: schedDate,
+        scheduled_date: schedDate,
+        slot: schedTime,
+        scheduledTime: schedTime,
+        scheduled_time: schedTime,
+        address: delAddress,
+        deliveryAddress: delAddress,
+        delivery_address: delAddress,
+        total,
+        subtotal,
+        deliveryFee,
+        items: (o.items || []).map((item) => {
+            const price = parseMoney(item.unitPrice ?? item.unitPriceCents ?? item.price);
+            return {
+                ...item,
+                name: item.nameSnapshot || item.name || "",
+                nameSnapshot: item.nameSnapshot || item.name || "",
+                qty: item.quantity ?? item.qty ?? 1,
+                quantity: item.quantity ?? item.qty ?? 1,
+                price,
+                unitPrice: price,
+                instructions: item.instructions || "",
+            };
+        }),
     };
 }
+
 
 export function mapReview(r) {
     if (!r) return null;
@@ -81,6 +135,7 @@ export function mapReview(r) {
         verified: r.isVerified ?? r.is_verified ?? true,
         rating: r.rating || 5,
         foodRating: r.foodRating || r.rating || 5,
+        text: r.comment || r.text || "",
         date: r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : (r.created_date || "").slice(0, 10),
     };
 }
@@ -254,8 +309,8 @@ export function useMyOrders() {
         queryKey: ["myOrders", user?.id],
         queryFn: async () => {
             if (!user) return [];
-            const res = await ordersApi.getOrders();
-            const orders = Array.isArray(res.orders || res) ? (res.orders || res) : [];
+            const res = await ordersApi.getMyOrders();
+            const orders = Array.isArray(res.data) ? res.data : Array.isArray(res.orders) ? res.orders : Array.isArray(res) ? res : [];
             return orders.map(mapOrder);
         },
         enabled: !!user,
@@ -267,8 +322,9 @@ export function useOrderById(orderId) {
         queryKey: ["order", orderId],
         queryFn: async () => {
             if (!orderId) return null;
-            const order = await ordersApi.getOrderById(orderId);
-            return mapOrder(order);
+            const res = await ordersApi.getOrderById(orderId);
+            const rawOrder = res.order || res.data || res;
+            return mapOrder(rawOrder);
         },
         enabled: !!orderId,
     });
@@ -279,13 +335,26 @@ export function useRestaurantOrders(restaurantId) {
         queryKey: ["restaurantOrders", restaurantId],
         queryFn: async () => {
             if (!restaurantId) return [];
-            const res = await ordersApi.getOrders({ restaurantId });
-            const orders = Array.isArray(res.orders || res) ? (res.orders || res) : [];
+            const res = await ordersApi.getRestaurantOrders();
+            const orders = Array.isArray(res.data) ? res.data : Array.isArray(res.orders) ? res.orders : Array.isArray(res) ? res : [];
             return orders.map(mapOrder);
         },
         enabled: !!restaurantId,
     });
 }
+
+export function useAdminOrders() {
+    return useQuery({
+        queryKey: ["adminOrders"],
+        queryFn: async () => {
+            const res = await ordersApi.getAdminOrders();
+            const orders = Array.isArray(res.data) ? res.data : Array.isArray(res.orders) ? res.orders : Array.isArray(res) ? res : [];
+            return orders.map(mapOrder);
+        },
+    });
+}
+
+
 
 // --- Reviews ---
 
@@ -295,7 +364,8 @@ export function useMyReviews() {
         queryKey: ["myReviews", user?.id],
         queryFn: async () => {
             if (!user) return [];
-            return [];
+            const list = await reviewsApi.getMyReviews();
+            return (Array.isArray(list) ? list : []).map(mapReview);
         },
         enabled: !!user,
     });
@@ -305,7 +375,44 @@ export function useAllReviews() {
     return useQuery({
         queryKey: ["allReviews"],
         queryFn: async () => {
-            return [];
+            const list = await reviewsApi.getAllReviews();
+            return (Array.isArray(list) ? list : []).map(mapReview);
+        },
+    });
+}
+
+export function useAdminUsers() {
+    return useQuery({
+        queryKey: ["adminUsers"],
+        queryFn: async () => {
+            return await authApi.getAdminUsers();
+        },
+    });
+}
+
+export function useUpdateUserStatus() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} p */ async ({ userId, isActive }) => {
+            return await authApi.updateUserStatus(userId, isActive);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+        },
+    });
+}
+
+export function useDeleteReview() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {string} reviewId */ async (reviewId) => {
+            return await reviewsApi.deleteReview(reviewId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["allReviews"] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantReviews"] });
+            queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
+            queryClient.invalidateQueries({ queryKey: ["restaurants"] });
         },
     });
 }
@@ -342,6 +449,26 @@ export function useCommissionConfig() {
     });
 }
 
+export function useRestaurantFinancials(restaurantId) {
+    return useQuery({
+        queryKey: ["restaurantFinancials", restaurantId],
+        queryFn: async () => {
+            if (!restaurantId) return null;
+            return await financialsApi.getRestaurantFinancials(restaurantId);
+        },
+        enabled: !!restaurantId,
+    });
+}
+
+export function useAdminFinancialRecords(params = {}) {
+    return useQuery({
+        queryKey: ["adminFinancialRecords", params],
+        queryFn: async () => {
+            return await financialsApi.getFinancialRecords(params);
+        },
+    });
+}
+
 export function useDashboardMetrics(scope, restaurantId) {
     return useQuery({
         queryKey: ["dashboardMetrics", scope, restaurantId],
@@ -368,8 +495,8 @@ export function usePlaceOrder() {
 export function useUpdateOrderStatus() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: /** @param {any} p */ async ({ orderId, newStatus, reason }) => {
-            return await ordersApi.updateOrderStatus(orderId, newStatus, reason);
+        mutationFn: /** @param {any} p */ async ({ orderId, newStatus }) => {
+            return await ordersApi.updateOrderStatus(orderId, newStatus);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["restaurantOrders"] });
@@ -445,12 +572,26 @@ export function useSetRestaurantStatus() {
 export function useSetCommissionRate() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: /** @param {any} p */ async ({ rate, overrides }) => {
-            return await financialsApi.updateCommissionConfig(rate, overrides || []);
+        mutationFn: /** @param {any} p */ async ({ rate, overrides, serviceFee }) => {
+            return await financialsApi.updateCommissionConfig(rate, overrides || [], serviceFee);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["commissionConfig"] });
             queryClient.invalidateQueries({ queryKey: ["allRestaurants"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboardMetrics"] });
+        },
+    });
+}
+
+export function useSettleFinancialRecord() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} p */ async ({ recordId, notes }) => {
+            return await financialsApi.settleFinancialRecord(recordId, notes);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["restaurantFinancials"] });
+            queryClient.invalidateQueries({ queryKey: ["adminFinancialRecords"] });
             queryClient.invalidateQueries({ queryKey: ["dashboardMetrics"] });
         },
     });
@@ -484,18 +625,19 @@ export function useManageMenuItem() {
                 return await menuApi.deleteMenuItem(itemId);
             }
 
-            const priceInCents = typeof data.price === "number"
-                ? (data.price < 100 ? Math.round(data.price * 100) : data.price)
+            const priceInCents = typeof data.price === "number" && !isNaN(data.price)
+                ? Math.round(data.price * 100)
                 : undefined;
 
             const payload = {};
             if (data.categoryId) payload.categoryId = data.categoryId;
             if (data.name) payload.name = data.name;
-            if (data.description !== undefined || data.desc !== undefined) payload.description = data.description || data.desc || "";
+            if (data.description !== undefined || data.desc !== undefined) payload.description = data.description ?? data.desc ?? "";
             if (priceInCents !== undefined) payload.price = priceInCents;
-            if (data.imageUrl !== undefined || data.image !== undefined) payload.imageUrl = data.imageUrl || data.image || "";
+            if (data.imageUrl !== undefined || data.image !== undefined) payload.imageUrl = data.imageUrl ?? data.image ?? "";
             if (data.isVegetarian !== undefined || data.veg !== undefined) payload.isVegetarian = data.isVegetarian ?? data.veg ?? false;
             if (data.isAvailable !== undefined || data.available !== undefined) payload.isAvailable = data.isAvailable ?? data.available ?? true;
+            if (data.isPopular !== undefined || data.popular !== undefined) payload.isPopular = data.isPopular ?? data.popular ?? false;
 
             if (data.action === "update" || itemId) {
                 return await menuApi.updateMenuItem(itemId, payload);
@@ -538,5 +680,70 @@ export function useMyRestaurant() {
             return { ...mapRestaurant(restaurant), ...stats };
         },
         enabled: !!user,
+    });
+}
+
+// --- Invoices ---
+
+export function useAdminInvoices(params = {}) {
+    return useQuery({
+        queryKey: ["adminInvoices", params],
+        queryFn: async () => {
+            const res = await invoicesApi.getAdminInvoices(params);
+            return Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        },
+    });
+}
+
+export function useRestaurantInvoices(restaurantId) {
+    return useQuery({
+        queryKey: ["restaurantInvoices", restaurantId],
+        queryFn: async () => {
+            const res = await invoicesApi.getRestaurantInvoices({ restaurantId });
+            return Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        },
+    });
+}
+
+export function useGenerateInvoice() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} invoiceData */ async (invoiceData) => {
+            return await invoicesApi.generateInvoice(invoiceData);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["adminInvoices"] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantInvoices"] });
+            queryClient.invalidateQueries({ queryKey: ["adminFinancialRecords"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboardMetrics"] });
+        },
+    });
+}
+
+export function useUploadPaymentSlip() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} p */ async ({ invoiceId, paymentSlipUrl }) => {
+            return await invoicesApi.uploadPaymentSlip(invoiceId, paymentSlipUrl);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["adminInvoices"] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantInvoices"] });
+        },
+    });
+}
+
+export function useMarkInvoicePaid() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {string} invoiceId */ async (invoiceId) => {
+            return await invoicesApi.markInvoicePaid(invoiceId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["adminInvoices"] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantInvoices"] });
+            queryClient.invalidateQueries({ queryKey: ["adminFinancialRecords"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboardMetrics"] });
+        },
     });
 }

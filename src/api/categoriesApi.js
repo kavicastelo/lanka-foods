@@ -2,8 +2,9 @@ import { apiClient } from './apiClient';
 
 export const categoriesApi = {
   async getCategories() {
-    const res = await apiClient.get('/api/categories');
-    return res.data || res;
+    const res = /** @type {any} */ (await apiClient.get('/api/categories'));
+    const data = res.data || res;
+    return data.categories || (Array.isArray(data) ? data : []);
   },
 
   async getCategoryById(id) {

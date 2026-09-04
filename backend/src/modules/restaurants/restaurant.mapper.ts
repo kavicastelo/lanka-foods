@@ -25,6 +25,8 @@ export interface PublicRestaurantDto {
   timeSlots: string[];
   featured: boolean;
   status: string;
+  ratingAverage: number;
+  reviewCount: number;
   createdAt: string;
 }
 
@@ -60,6 +62,8 @@ export function toPublicRestaurantDto(restaurant: Partial<IRestaurant> & { _id: 
     timeSlots: restaurant.timeSlots || [],
     featured: restaurant.featured ?? false,
     status: restaurant.status || 'pending',
+    ratingAverage: restaurant.ratingAverage ?? 0,
+    reviewCount: restaurant.reviewCount ?? 0,
     createdAt: restaurant.createdAt ? new Date(restaurant.createdAt).toISOString() : new Date().toISOString(),
   };
 }

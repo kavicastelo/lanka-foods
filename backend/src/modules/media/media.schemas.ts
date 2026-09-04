@@ -6,6 +6,7 @@ export const allowedMediaCategories = [
   'menu_item',
   'application_logo',
   'application_cover',
+  'payment_slip',
 ] as const;
 
 export const allowedMediaMimeTypes = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -31,6 +32,12 @@ export const requestUploadUrlSchema = z.object({
   restaurantId: z.string().optional(),
 });
 
+export const uploadMediaSchema = requestUploadUrlSchema.extend({
+  base64Data: z
+    .string({ required_error: 'base64Data is required' })
+    .min(1, 'base64Data cannot be empty'),
+});
+
 export const deleteMediaSchema = z.object({
   objectKey: z
     .string({ required_error: 'objectKey is required' })
@@ -42,4 +49,5 @@ export const deleteMediaSchema = z.object({
 });
 
 export type RequestUploadUrlInput = z.infer<typeof requestUploadUrlSchema>;
+export type UploadMediaInput = z.infer<typeof uploadMediaSchema>;
 export type DeleteMediaInput = z.infer<typeof deleteMediaSchema>;

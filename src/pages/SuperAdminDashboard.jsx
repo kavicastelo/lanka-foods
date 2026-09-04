@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { LayoutDashboard, Store, ClipboardList, Users, Star, DollarSign, Settings, TrendingUp, ShoppingBag, Check, X, Eye, Ban, RotateCcw, MessageSquare, Search } from "lucide-react";
+import { LayoutDashboard, Store, ClipboardList, Users, Star, DollarSign, Settings, TrendingUp, ShoppingBag, Check, X, Eye, Ban, RotateCcw, MessageSquare, Search, Plus } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
-import { useAllRestaurants, useRestaurantApplications, useAllReviews, useCommissionConfig, useDashboardMetrics, useApproveApplication, useRejectApplication, useRequestChanges, useSetRestaurantStatus, useSetCommissionRate } from "@/hooks/useMarketplaceData";
+import { useAllRestaurants, useRestaurantApplications, useAllReviews, useCommissionConfig, useDashboardMetrics, useApproveApplication, useRejectApplication, useRequestChanges, useSetRestaurantStatus, useSetCommissionRate, useAdminFinancialRecords, useSettleFinancialRecord, useAdminUsers, useUpdateUserStatus, useDeleteReview, useAdminOrders, useAdminInvoices, useGenerateInvoice, useMarkInvoicePaid } from "@/hooks/useMarketplaceData";
 import { ordersApi } from "@/api/ordersApi";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatusBadge from "@/components/StatusBadge";
@@ -25,14 +25,10 @@ export default function SuperAdminDashboard() {
     const { data: restaurants = [] } = useAllRestaurants();
     const { data: applications = [] } = useRestaurantApplications();
     const { data: reviews = [] } = useAllReviews();
+    const { data: users = [] } = useAdminUsers();
+    const { data: allOrders = [] } = useAdminOrders();
     const { data: commissionConfig } = useCommissionConfig();
     const { data: metrics } = useDashboardMetrics("admin");
-    const [allOrders, setAllOrders] = useState([]);
-
-    // Fetch all orders (admin can read all)
-    React.useEffect(() => {
-        ordersApi.getOrders().then((res) => setAllOrders(res.orders || res || [])).catch(() => { });
-    }, []);
 
     const commissionRate = commissionConfig?.default_rate ?? 10;
     const monthlyData = metrics?.monthlyData || [];
@@ -58,7 +54,8 @@ export default function SuperAdminDashboard() {
     const stats = useMemo(() => {
         const active = restaurants.filter((r) => r.status === "active").length;
         const pending = applications.filter((a) => a.status === "pending").length;
-        const customers = new Set(allOrders.map((o) => o.customer_id).filter(Boolean)).size;
+        const customerUsers = users.filter((u) => u.role === "CUSTOMER" || u.role === "USER");
+        const customers = customerUsers.length > 0 ? customerUsers.length : (users.length || new Set(allOrders.map((o) => o.customer_id).filter(Boolean)).size);
         const avg = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
         return {
             total: restaurants.length,
@@ -69,7 +66,7 @@ export default function SuperAdminDashboard() {
             avg: avg.toFixed(2),
             commissionRate,
         };
-    }, [restaurants, applications, allOrders, reviews, commissionRate]);
+    }, [restaurants, applications, allOrders, reviews, users, commissionRate]);
 
     const titles = {
         overview: ["Marketplace overview", "Performance across all restaurants"],
@@ -252,10 +249,14 @@ function IconBtn({ icon: Icon, onClick, title, tone = "default" }) {
 function Orders({ orders, restaurants }) {
     const [f, setF] = useState({ restaurant: "", status: "", type: "", q: "" });
     const filtered = orders.filter((o) => {
-        if (f.restaurant && o.restaurant_id !== f.restaurant) return false;
+        const rId = o.restaurantId || o.restaurant_id;
+        const dType = o.deliveryType || o.delivery_type;
+        const cName = o.customerName || o.customer_name || o.customer || "";
+
+        if (f.restaurant && rId !== f.restaurant) return false;
         if (f.status && o.status !== f.status) return false;
-        if (f.type && o.delivery_type !== f.type) return false;
-        if (f.q && !(o.customer_name || "").toLowerCase().includes(f.q.toLowerCase())) return false;
+        if (f.type && dType !== f.type) return false;
+        if (f.q && !cName.toLowerCase().includes(f.q.toLowerCase())) return false;
         return true;
     });
     const select = "rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary";
@@ -264,7 +265,7 @@ function Orders({ orders, restaurants }) {
             <div className="flex flex-wrap gap-2 border-b border-border p-4">
                 <select value={f.restaurant} onChange={(e) => setF({ ...f, restaurant: e.target.value })} className={select}>
                     <option value="">All restaurants</option>
-                    {restaurants.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    {restaurants.map((r) => <option key={r.id || r._id} value={r.id || r._id}>{r.name}</option>)}
                 </select>
                 <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} className={select}>
                     <option value="">All statuses</option>
@@ -294,17 +295,36 @@ function Orders({ orders, restaurants }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map((o) => (
-                            <tr key={o.id} className="border-t border-border">
-                                <td className="px-4 py-3 font-600">{o.order_number}</td>
-                                <td className="px-4 py-3">{restaurants.find((r) => r.id === o.restaurant_id)?.name}</td>
-                                <td className="px-4 py-3">{o.customer_name}</td>
-                                <td className="px-4 py-3 text-muted-foreground">{o.scheduled_date} {o.scheduled_time}</td>
-                                <td className="px-4 py-3 capitalize">{o.delivery_type}</td>
-                                <td className="px-4 py-3 font-700">€{(o.total || 0).toFixed(2)}</td>
-                                <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="py-6 text-center text-muted-foreground">
+                                    No orders found matching the selected filters.
+                                </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filtered.map((o) => {
+                                const rId = o.restaurantId || o.restaurant_id;
+                                const rest = restaurants.find((r) => (r.id || r._id) === rId);
+                                const restName = rest?.name || "Restaurant";
+                                const custName = o.customerName || o.customer_name || o.customer || "Customer";
+                                const orderNum = o.orderNumber || o.order_number || o.id;
+                                const schedDate = o.scheduledDate || o.scheduled_date || o.date || "";
+                                const schedTime = o.scheduledTime || o.scheduled_time || o.slot || "";
+                                const dType = o.deliveryType || o.delivery_type || "delivery";
+
+                                return (
+                                    <tr key={o.id} className="border-t border-border">
+                                        <td className="px-4 py-3 font-600">{orderNum}</td>
+                                        <td className="px-4 py-3">{restName}</td>
+                                        <td className="px-4 py-3">{custName}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{schedDate} {schedTime}</td>
+                                        <td className="px-4 py-3 capitalize">{dType}</td>
+                                        <td className="px-4 py-3 font-700">€{(o.total || 0).toFixed(2)}</td>
+                                        <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -313,42 +333,112 @@ function Orders({ orders, restaurants }) {
 }
 
 function Customers({ orders }) {
-    const customers = useMemo(() => {
+    const { data: users = [] } = useAdminUsers();
+    const updateUserStatus = useUpdateUserStatus();
+    const [q, setQ] = useState("");
+
+    const displayCustomers = useMemo(() => {
+        if (users.length > 0) {
+            return users
+                .filter((u) => u.role === "CUSTOMER" || u.role === "USER")
+                .map((u) => ({
+                    id: u.id,
+                    name: u.fullName || u.email.split("@")[0],
+                    email: u.email,
+                    phone: u.phone,
+                    role: u.role,
+                    orders: u.orderCount || 0,
+                    spending: u.totalSpending || 0,
+                    lastOrder: u.lastOrderAt ? u.lastOrderAt.slice(0, 10) : "—",
+                    isActive: u.isActive !== false,
+                }));
+        }
+
+        // Fallback to order aggregated list
         const map = {};
         orders.forEach((o) => {
             const key = o.customer_id;
             if (!key || key === "legacy-import") return;
-            if (!map[key]) map[key] = { id: key, name: o.customer_name, email: o.customer_email || "", orders: 0, spending: 0, lastOrder: null };
+            if (!map[key]) map[key] = { id: key, name: o.customer_name, email: o.customer_email || "", orders: 0, spending: 0, lastOrder: null, isActive: true };
             map[key].orders += 1;
             if (!["cancelled", "rejected"].includes(o.status)) map[key].spending += o.total || 0;
             if (!map[key].lastOrder || (o.placed_at || "") > map[key].lastOrder) map[key].lastOrder = o.placed_at;
         });
         return Object.values(map);
-    }, [orders]);
+    }, [users, orders]);
+
+    const filtered = displayCustomers.filter((c) => {
+        if (!q) return true;
+        const query = q.toLowerCase();
+        return (c.name || "").toLowerCase().includes(query) || (c.email || "").toLowerCase().includes(query);
+    });
 
     return (
         <Card className="p-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+                <div className="relative w-full max-w-sm">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder="Search customers by name or email..."
+                        className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
+                    />
+                </div>
+            </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                         <tr>
-                            <th className="px-4 py-3 font-600">Customer</th>
-                            <th className="px-4 py-3 font-600">Email</th>
-                            <th className="px-4 py-3 font-600">Orders</th>
-                            <th className="px-4 py-3 font-600">Total spending</th>
-                            <th className="px-4 py-3 font-600">Last order</th>
+                            <th className="px-4 py-3 font-600">Customer Name</th>
+                            <th className="px-4 py-3 font-600">Email & Phone</th>
+                            <th className="px-4 py-3 font-600">Total Orders</th>
+                            <th className="px-4 py-3 font-600">Total Spending</th>
+                            <th className="px-4 py-3 font-600">Last Order</th>
+                            <th className="px-4 py-3 font-600">Account Status</th>
+                            <th className="px-4 py-3 font-600">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {customers.map((c) => (
-                            <tr key={c.id} className="border-t border-border">
-                                <td className="px-4 py-3 font-600">{c.name}</td>
-                                <td className="px-4 py-3 text-muted-foreground">{c.email}</td>
-                                <td className="px-4 py-3">{c.orders}</td>
-                                <td className="px-4 py-3 font-700">€{c.spending.toFixed(2)}</td>
-                                <td className="px-4 py-3 text-xs text-muted-foreground">{c.lastOrder ? c.lastOrder.slice(0, 10) : "—"}</td>
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="py-6 text-center text-muted-foreground">
+                                    No registered customers found.
+                                </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filtered.map((c) => (
+                                <tr key={c.id} className="border-t border-border">
+                                    <td className="px-4 py-3 font-600">{c.name}</td>
+                                    <td className="px-4 py-3">
+                                        <div>{c.email}</div>
+                                        {c.phone && <div className="text-xs text-muted-foreground">{c.phone}</div>}
+                                    </td>
+                                    <td className="px-4 py-3">{c.orders}</td>
+                                    <td className="px-4 py-3 font-700">€{(c.spending || 0).toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-xs text-muted-foreground">{c.lastOrder}</td>
+                                    <td className="px-4 py-3">
+                                        <span className={cn(
+                                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-600",
+                                            c.isActive ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-destructive/10 text-destructive"
+                                        )}>
+                                            {c.isActive ? "Active" : "Suspended"}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 text-xs"
+                                            onClick={() => updateUserStatus.mutate({ userId: c.id, isActive: !c.isActive })}
+                                            disabled={updateUserStatus.isPending}
+                                        >
+                                            {c.isActive ? "Suspend Account" : "Activate Account"}
+                                        </Button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -357,17 +447,8 @@ function Customers({ orders }) {
 }
 
 function Reviews({ reviews, restaurants }) {
-    const [removing, setRemoving] = useState(null);
-    const removeReview = async (id) => {
-        setRemoving(id);
-        try {
-            alert("Review removed");
-            window.location.reload();
-        } catch (_e) {
-            alert("Failed to delete review");
-        }
-        setRemoving(null);
-    };
+    const deleteReview = useDeleteReview();
+
     return (
         <Card className="p-0">
             <div className="overflow-x-auto">
@@ -383,20 +464,36 @@ function Reviews({ reviews, restaurants }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {reviews.map((r) => (
-                            <tr key={r.id} className="border-t border-border">
-                                <td className="px-4 py-3 font-600">{restaurants.find((x) => x.id === r.restaurantId)?.name || r.restaurantId}</td>
-                                <td className="px-4 py-3">{r.author}</td>
-                                <td className="px-4 py-3">{r.rating}★</td>
-                                <td className="px-4 py-3 max-w-xs text-muted-foreground">"{r.text}"</td>
-                                <td className="px-4 py-3 text-xs text-muted-foreground">{r.date}</td>
-                                <td className="px-4 py-3">
-                                    <button onClick={() => removeReview(r.id)} disabled={removing === r.id} className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-600 text-destructive hover:bg-destructive/10 disabled:opacity-50">
-                                        {removing === r.id ? "Removing…" : "Remove"}
-                                    </button>
+                        {reviews.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="py-6 text-center text-muted-foreground">
+                                    No customer reviews posted yet.
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            reviews.map((r) => (
+                                <tr key={r.id} className="border-t border-border">
+                                    <td className="px-4 py-3 font-600">
+                                        {restaurants.find((x) => x.id === r.restaurantId || x.id === r.restaurant_id)?.name || r.restaurantName || r.restaurantId}
+                                    </td>
+                                    <td className="px-4 py-3">{r.author || r.authorName || r.author_name}</td>
+                                    <td className="px-4 py-3">{r.rating}★</td>
+                                    <td className="px-4 py-3 max-w-xs text-muted-foreground">"{r.text || r.comment}"</td>
+                                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                                        {r.date || (r.createdAt ? r.createdAt.slice(0, 10) : "—")}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <button
+                                            onClick={() => deleteReview.mutate(r.id)}
+                                            disabled={deleteReview.isPending}
+                                            className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-600 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                                        >
+                                            {deleteReview.isPending ? "Removing…" : "Remove"}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -404,18 +501,243 @@ function Reviews({ reviews, restaurants }) {
     );
 }
 
+function GenerateInvoiceModal({ restaurants, onClose }) {
+    const generateInvoice = useGenerateInvoice();
+    const [restaurantId, setRestaurantId] = useState(restaurants[0]?.id || restaurants[0]?._id || "");
+    const [periodStart, setPeriodStart] = useState(() => {
+        const d = new Date();
+        return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+    });
+    const [periodEnd, setPeriodEnd] = useState(() => new Date().toISOString().slice(0, 10));
+    const [subscriptionFee, setSubscriptionFee] = useState("0");
+    const [notes, setNotes] = useState("");
+    const [errorMsg, setErrorMsg] = useState("");
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!restaurantId) {
+            setErrorMsg("Please select a restaurant.");
+            return;
+        }
+        generateInvoice.mutate(
+            {
+                restaurantId,
+                periodStart,
+                periodEnd,
+                subscriptionFee: parseFloat(subscriptionFee) || 0,
+                notes,
+            },
+            {
+                onSuccess: () => onClose(),
+                onError: (err) => setErrorMsg((/** @type {any} */ (err)).response?.data?.error?.message || (/** @type {any} */ (err)).message || "Failed to generate invoice"),
+            }
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-display text-lg font-700">Generate Periodic Invoice</h3>
+                    <button onClick={onClose} className="rounded-lg p-1 hover:bg-secondary"><X className="h-5 w-5" /></button>
+                </div>
+                {errorMsg && <div className="rounded-lg bg-destructive/10 p-3 text-xs font-600 text-destructive">{errorMsg}</div>}
+                <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+                    <div>
+                        <label className="block text-xs font-600 text-muted-foreground mb-1">Target Restaurant</label>
+                        <select
+                            value={restaurantId}
+                            onChange={(e) => setRestaurantId(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-card p-2.5 outline-none focus:border-primary"
+                        >
+                            {restaurants.map((r) => (
+                                <option key={r.id || r._id} value={r.id || r._id}>{r.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-600 text-muted-foreground mb-1">Period Start</label>
+                            <input
+                                type="date"
+                                value={periodStart}
+                                onChange={(e) => setPeriodStart(e.target.value)}
+                                className="w-full rounded-lg border border-border bg-card p-2.5 outline-none focus:border-primary"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-600 text-muted-foreground mb-1">Period End</label>
+                            <input
+                                type="date"
+                                value={periodEnd}
+                                onChange={(e) => setPeriodEnd(e.target.value)}
+                                className="w-full rounded-lg border border-border bg-card p-2.5 outline-none focus:border-primary"
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-600 text-muted-foreground mb-1">Subscription Fee (€)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={subscriptionFee}
+                            onChange={(e) => setSubscriptionFee(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full rounded-lg border border-border bg-card p-2.5 outline-none focus:border-primary"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-600 text-muted-foreground mb-1">Notes / Billing Memo</label>
+                        <textarea
+                            rows={2}
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Monthly commission + service fee summary..."
+                            className="w-full rounded-lg border border-border bg-card p-2.5 outline-none focus:border-primary"
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                        <Button type="submit" disabled={generateInvoice.isPending}>
+                            {generateInvoice.isPending ? "Generating..." : "Generate & Issue Invoice"}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 function Revenue({ monthlyData, rows, stats }) {
+    const [statusFilter, setStatusFilter] = useState("ALL");
+    const [showGenModal, setShowGenModal] = useState(false);
+    const { data: recordsData } = useAdminFinancialRecords();
+    const { data: invoices = [] } = useAdminInvoices();
+    const markInvoicePaid = useMarkInvoicePaid();
+    const settleMutation = useSettleFinancialRecord();
+    const records = Array.isArray(recordsData) ? recordsData : (recordsData?.data || []);
+
     const totalGross = monthlyData.reduce((s, m) => s + (m.gross || 0), 0);
     const totalPlatform = monthlyData.reduce((s, m) => s + (m.platform || 0), 0);
-    const totalOrders = monthlyData.reduce((s, m) => s + (m.orders || 0), 0);
+
+    const getFeeTotal = (r) => r.platformFeeTotal ?? ((r.commissionAmount || 0) + (r.serviceFee || 0));
+    const pendingCommissionSum = records.filter((r) => r.status === "PENDING").reduce((s, r) => s + getFeeTotal(r), 0);
+    const settledCommissionSum = records.filter((r) => r.status === "SETTLED").reduce((s, r) => s + getFeeTotal(r), 0);
+
+    const liveRestaurants = rows.filter((r) => r.kind === "live");
+
     return (
         <div className="space-y-6">
+            {showGenModal && <GenerateInvoiceModal restaurants={liveRestaurants} onClose={() => setShowGenModal(false)} />}
+
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard icon={TrendingUp} label="Total GMV (6mo)" value={`€${totalGross.toLocaleString()}`} sub="gross order value" />
-                <StatCard icon={DollarSign} label="Platform revenue" value={`€${totalPlatform.toLocaleString()}`} sub={`${stats.commissionRate}% commission`} />
-                <StatCard icon={ClipboardList} label="Orders (6mo)" value={totalOrders} sub={totalOrders > 0 ? `avg €${(totalGross / totalOrders).toFixed(2)}` : ""} />
-                <StatCard icon={Store} label="Active restaurants" value={stats.active} sub="earning" />
+                <StatCard icon={DollarSign} label="Platform Revenue" value={`€${totalPlatform.toLocaleString()}`} sub={`${stats.commissionRate}% default rate`} />
+                <Card className="border-amber-500/20 bg-amber-500/5">
+                    <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
+                        <span className="text-sm font-600">Pending Fees Owed</span>
+                        <DollarSign className="h-5 w-5" />
+                    </div>
+                    <div className="mt-2 text-2xl font-800 text-amber-700 dark:text-amber-400">€{pendingCommissionSum.toFixed(2)}</div>
+                    <div className="mt-1 text-xs text-amber-600/80">Unsettled (Commission + Service Fee)</div>
+                </Card>
+                <Card className="border-emerald-500/20 bg-emerald-500/5">
+                    <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+                        <span className="text-sm font-600">Settled Platform Fees</span>
+                        <Check className="h-5 w-5" />
+                    </div>
+                    <div className="mt-2 text-2xl font-800 text-emerald-700 dark:text-emerald-400">€{settledCommissionSum.toFixed(2)}</div>
+                    <div className="mt-1 text-xs text-emerald-600/80">Collected & confirmed</div>
+                </Card>
             </div>
+
+            {/* Issued Monthly Invoices Control Section */}
+            <Card className="p-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+                    <div>
+                        <h3 className="font-700">Periodic Monthly Invoices</h3>
+                        <p className="text-xs text-muted-foreground">Consolidated invoices issued to restaurants for commission, service fees & platform subscriptions.</p>
+                    </div>
+                    <Button onClick={() => setShowGenModal(true)} className="gap-2">
+                        <Plus className="h-4 w-4" /> Generate Monthly Invoice
+                    </Button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                            <tr>
+                                <th className="px-4 py-3 font-600">Invoice #</th>
+                                <th className="px-4 py-3 font-600">Restaurant</th>
+                                <th className="px-4 py-3 font-600">Billing Period</th>
+                                <th className="px-4 py-3 font-600">Orders</th>
+                                <th className="px-4 py-3 font-600">Gross GMV</th>
+                                <th className="px-4 py-3 font-600">Commission</th>
+                                <th className="px-4 py-3 font-600">Service Fee</th>
+                                <th className="px-4 py-3 font-600">Total Due</th>
+                                <th className="px-4 py-3 font-600">Status</th>
+                                <th className="px-4 py-3 font-600">Payment Slip</th>
+                                <th className="px-4 py-3 font-600">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoices.length === 0 ? (
+                                <tr>
+                                    <td colSpan={11} className="py-6 text-center text-muted-foreground">
+                                        No invoices generated yet. Click "Generate Monthly Invoice" above to create one.
+                                    </td>
+                                </tr>
+                            ) : (
+                                invoices.map((inv) => (
+                                    <tr key={inv.id} className="border-t border-border">
+                                        <td className="px-4 py-3 font-700">{inv.invoiceNumber}</td>
+                                        <td className="px-4 py-3 font-600">{inv.restaurantName}</td>
+                                        <td className="px-4 py-3 text-xs text-muted-foreground">{inv.periodStart} to {inv.periodEnd}</td>
+                                        <td className="px-4 py-3">{inv.orderCount}</td>
+                                        <td className="px-4 py-3">€{(inv.grossSales / 100).toFixed(2)}</td>
+                                        <td className="px-4 py-3 font-500">€{(inv.totalCommission / 100).toFixed(2)}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">€{(inv.totalServiceFee / 100).toFixed(2)}</td>
+                                        <td className="px-4 py-3 font-800 text-amber-600 dark:text-amber-400">€{(inv.totalAmountDue / 100).toFixed(2)}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={cn(
+                                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-600",
+                                                inv.status === "PAID" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                            )}>
+                                                {inv.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-xs">
+                                            {inv.paymentSlipUrl ? (
+                                                <a href={inv.paymentSlipUrl} target="_blank" rel="noopener noreferrer" className="font-600 text-primary hover:underline flex items-center gap-1">
+                                                    <Eye className="h-3.5 w-3.5" /> View Slip
+                                                </a>
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {inv.status !== "PAID" ? (
+                                                <Button
+                                                    size="sm"
+                                                    className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                    onClick={() => markInvoicePaid.mutate(inv.id)}
+                                                    disabled={markInvoicePaid.isPending}
+                                                >
+                                                    Confirm Payment
+                                                </Button>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">Paid on {inv.paidAt ? inv.paidAt.slice(0, 10) : ""}</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
                     <h3 className="font-700">Monthly revenue</h3>
@@ -448,6 +770,102 @@ function Revenue({ monthlyData, rows, stats }) {
                     </div>
                 </Card>
             </div>
+
+            <Card className="p-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+                    <div>
+                        <h3 className="font-700">Commission Settlement & Invoicing Control</h3>
+                        <p className="text-xs text-muted-foreground">Manage and confirm restaurant commission payments. Orders continue normally without interruption.</p>
+                    </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm outline-none focus:border-primary"
+                    >
+                        <option value="ALL">All Settlement Statuses</option>
+                        <option value="PENDING">Pending Settlement</option>
+                        <option value="SETTLED">Settled / Paid</option>
+                    </select>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                            <tr>
+                                <th className="px-4 py-3 font-600">Date</th>
+                                <th className="px-4 py-3 font-600">Order #</th>
+                                <th className="px-4 py-3 font-600">Restaurant</th>
+                                <th className="px-4 py-3 font-600">Order Subtotal</th>
+                                <th className="px-4 py-3 font-600">Rate</th>
+                                <th className="px-4 py-3 font-600">Commission Fee</th>
+                                <th className="px-4 py-3 font-600">Service Fee</th>
+                                <th className="px-4 py-3 font-600">Total Platform Fee</th>
+                                <th className="px-4 py-3 font-600">Restaurant Net</th>
+                                <th className="px-4 py-3 font-600">Status</th>
+                                <th className="px-4 py-3 font-600">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {records.filter((r) => {
+                                if (statusFilter === "PENDING") return r.status === "PENDING";
+                                if (statusFilter === "SETTLED") return r.status === "SETTLED";
+                                return true;
+                            }).length === 0 ? (
+                                <tr>
+                                    <td colSpan={11} className="py-6 text-center text-muted-foreground">
+                                        No financial commission records found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                records.filter((r) => {
+                                    if (statusFilter === "PENDING") return r.status === "PENDING";
+                                    if (statusFilter === "SETTLED") return r.status === "SETTLED";
+                                    return true;
+                                }).map((rec) => {
+                                    const feeTotal = getFeeTotal(rec);
+                                    return (
+                                        <tr key={rec.id} className="border-t border-border">
+                                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                                                {rec.createdAt ? new Date(rec.createdAt).toLocaleDateString() : "—"}
+                                            </td>
+                                            <td className="px-4 py-3 font-600">#{rec.orderNumber || rec.orderId?.slice(-6)}</td>
+                                            <td className="px-4 py-3 font-500">{rec.restaurantName || rec.restaurantId}</td>
+                                            <td className="px-4 py-3">€{(rec.orderSubtotal || 0).toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-muted-foreground">{rec.commissionRateSnapshot || rec.commissionRate}%</td>
+                                            <td className="px-4 py-3 font-500">€{(rec.commissionAmount || 0).toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-muted-foreground">€{(rec.serviceFee || 0).toFixed(2)}</td>
+                                            <td className="px-4 py-3 font-600 text-amber-600 dark:text-amber-400">€{feeTotal.toFixed(2)}</td>
+                                            <td className="px-4 py-3 font-600 text-emerald-600 dark:text-emerald-400">€{(rec.restaurantNetAmount || 0).toFixed(2)}</td>
+                                            <td className="px-4 py-3">
+                                                {rec.status === "SETTLED" ? (
+                                                    <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-600 text-emerald-700 dark:text-emerald-400">
+                                                        Settled
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-600 text-amber-700 dark:text-amber-400">
+                                                        Pending Invoice
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {rec.status === "SETTLED" ? (
+                                                    <span className="text-xs text-emerald-700 font-500 flex items-center gap-1 dark:text-emerald-400">
+                                                        <Check className="h-3.5 w-3.5" /> Settled via Invoice
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground font-500">
+                                                        Awaiting Monthly Invoice
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+
             <Card className="p-0">
                 <h3 className="px-5 pt-4 font-700">Revenue by restaurant</h3>
                 <div className="overflow-x-auto">
@@ -480,13 +898,22 @@ function Revenue({ monthlyData, rows, stats }) {
 }
 
 function SettingsTab({ restaurants, commissionRate }) {
+    const { data: commissionConfig } = useCommissionConfig();
     const [rate, setRate] = useState(commissionRate);
+    const [fee, setFee] = useState(commissionConfig?.serviceFee ?? 0.99);
     const [overrides, setOverrides] = useState({});
     const setCommissionRate = useSetCommissionRate();
     const [savedDefault, setSavedDefault] = useState(false);
 
+    React.useEffect(() => {
+        if (commissionConfig) {
+            setRate(commissionConfig.defaultRate ?? commissionRate);
+            setFee(commissionConfig.serviceFee ?? 0.99);
+        }
+    }, [commissionConfig, commissionRate]);
+
     const saveDefault = () => {
-        setCommissionRate.mutate({ rate });
+        setCommissionRate.mutate({ rate, serviceFee: fee });
         setSavedDefault(true);
         setTimeout(() => setSavedDefault(false), 2000);
     };
@@ -500,14 +927,26 @@ function SettingsTab({ restaurants, commissionRate }) {
             <Card>
                 <h3 className="font-700">Default platform commission</h3>
                 <p className="text-sm text-muted-foreground">Applied to all restaurants without a custom rate.</p>
-                <div className="mt-4 flex items-center gap-3">
+                <div className="mt-4 flex flex-wrap items-center gap-3">
                     <input type="number" min={0} max={50} value={rate} onChange={(e) => setRate(+e.target.value)} className="w-28 rounded-xl border border-border bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
                     <span className="text-2xl font-700">%</span>
                     <Button onClick={saveDefault} className="rounded-xl">Save</Button>
                     {savedDefault && <span className="text-sm font-600 text-primary">Saved</span>}
-                    <span className="text-sm text-muted-foreground">Example: €100 order → €{(100 * rate / 100).toFixed(2)} LankaEats, €{(100 - 100 * rate / 100).toFixed(2)} restaurant.</span>
+                    <span className="w-full text-sm text-muted-foreground">Example: €100 order → €{(100 * rate / 100).toFixed(2)} LankaEats, €{(100 - 100 * rate / 100).toFixed(2)} restaurant.</span>
                 </div>
             </Card>
+
+            <Card>
+                <h3 className="font-700">Platform customer service fee</h3>
+                <p className="text-sm text-muted-foreground">Fixed fee charged to customers per order to support platform technology and support.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <span className="text-xl font-700">€</span>
+                    <input type="number" step="0.05" min={0} max={50} value={fee} onChange={(e) => setFee(+e.target.value)} className="w-32 rounded-xl border border-border bg-card px-4 py-2.5 text-sm outline-none focus:border-primary" />
+                    <Button onClick={saveDefault} className="rounded-xl">Save service fee</Button>
+                    {savedDefault && <span className="text-sm font-600 text-primary">Saved</span>}
+                </div>
+            </Card>
+
             <Card className="p-0">
                 <h3 className="px-5 pt-4 font-700">Per-restaurant commission overrides</h3>
                 <div className="overflow-x-auto">
@@ -536,6 +975,19 @@ function DetailModal({ row, onClose }) {
     const approve = useApproveApplication();
     const reject = useRejectApplication();
     const requestChanges = useRequestChanges();
+    const setStatus = useSetRestaurantStatus();
+    const setCommissionRate = useSetCommissionRate();
+    const [rate, setRate] = useState(row.commissionRate ?? row.commission_rate ?? "");
+    const [savedRate, setSavedRate] = useState(false);
+
+    const applyRate = () => {
+        if (typeof rate === "number") {
+            setCommissionRate.mutate({ rate, restaurantId: row.id });
+            setSavedRate(true);
+            setTimeout(() => setSavedRate(false), 2000);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6" onClick={onClose}>
             <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-card p-6 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
@@ -560,12 +1012,45 @@ function DetailModal({ row, onClose }) {
                     <Info label="Description" value={row.description} full />
                 </div>
                 {row.kind === "live" && (
-                    <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                        <Mini label="Total orders" value={row.orderCount} />
-                        <Mini label="Total revenue" value={`€${(row.gross || 0).toFixed(0)}`} />
-                        <Mini label="Platform rev." value={`€${(row.platform || 0).toFixed(0)}`} />
-                        <Mini label="Rating" value={row.rating ? `${row.rating}★` : "—"} />
-                    </div>
+                    <>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                            <Mini label="Total orders" value={row.orderCount} />
+                            <Mini label="Total revenue" value={`€${(row.gross || 0).toFixed(0)}`} />
+                            <Mini label="Platform rev." value={`€${(row.platform || 0).toFixed(0)}`} />
+                            <Mini label="Rating" value={row.rating ? `${row.rating}★` : "—"} />
+                        </div>
+                        <div className="mt-5 rounded-xl border border-border p-4">
+                            <h4 className="font-700 text-sm">Commission Rate Override</h4>
+                            <div className="mt-2 flex items-center gap-3">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={50}
+                                    value={rate}
+                                    onChange={(e) => setRate(+e.target.value)}
+                                    placeholder="Default %"
+                                    className="w-28 rounded-lg border border-border bg-card px-3 py-1.5 text-sm outline-none focus:border-primary"
+                                />
+                                <span className="font-700">%</span>
+                                <Button size="sm" onClick={applyRate} disabled={setCommissionRate.isPending} className="h-8 rounded-lg text-xs">
+                                    {setCommissionRate.isPending ? "Saving..." : "Save Rate"}
+                                </Button>
+                                {savedRate && <span className="text-xs font-600 text-primary">Saved!</span>}
+                            </div>
+                        </div>
+                        <div className="mt-5 flex gap-3">
+                            {row.status === "active" && (
+                                <Button variant="destructive" size="sm" onClick={() => { setStatus.mutate({ restaurantId: row.id, status: "suspended" }); onClose(); }} className="rounded-xl">
+                                    Suspend Restaurant
+                                </Button>
+                            )}
+                            {row.status === "suspended" && (
+                                <Button size="sm" onClick={() => { setStatus.mutate({ restaurantId: row.id, status: "active" }); onClose(); }} className="rounded-xl">
+                                    Reactivate Restaurant
+                                </Button>
+                            )}
+                        </div>
+                    </>
                 )}
                 {row.status === "pending" && (
                     <div className="mt-6 flex gap-3">

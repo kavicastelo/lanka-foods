@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { Restaurant } from '../../models/restaurant.model.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import { getDashboardMetricsQuerySchema } from './dashboard.schemas.js';
@@ -41,16 +42,22 @@ export async function dashboardRoutes(fastify: FastifyInstance) {
       }
 
       // scope === 'restaurant'
-      if (!restaurantId) {
-        return reply.status(400).send({
-          error: { code: 'BAD_REQUEST', message: 'restaurantId is required when scope is restaurant' },
-        });
+      let targetRestaurantId = restaurantId;
+      if (!targetRestaurantId) {
+        const userRestaurant = await Restaurant.findOne({ ownerId: request.user.id }).lean();
+        if (userRestaurant) {
+          targetRestaurantId = userRestaurant._id.toString();
+        } else {
+          return reply.status(400).send({
+            error: { code: 'BAD_REQUEST', message: 'restaurantId is required when scope is restaurant' },
+          });
+        }
       }
 
       const data = await DashboardService.getRestaurantDashboardMetrics(
         request.user.id,
         request.user.role,
-        restaurantId
+        targetRestaurantId
       );
       return reply.status(200).send({ data });
     }
