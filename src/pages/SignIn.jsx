@@ -29,7 +29,7 @@ export default function SignIn() {
     return (
         <div className="grid min-h-screen lg:grid-cols-2">
             <div className="relative hidden lg:block">
-                <img src="https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=1200&q=80" alt="" className="h-full w-full object-cover" />
+                <img src="/images/hero.webp" alt="" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/40" />
                 <div className="absolute bottom-0 p-10 text-white">
                     <div className="flex items-center gap-2">

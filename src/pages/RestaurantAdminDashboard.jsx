@@ -12,6 +12,7 @@ import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useParams } from "react-router-dom";
+import { DEFAULT_MENU_IMAGE } from "@/lib/constants";
 
 const nav = [
     { id: "open", label: "Open Orders", icon: ClipboardList },
@@ -262,7 +263,7 @@ function Menu({ restaurant }) {
             name: form.name,
             price: +form.price,
             description: form.desc,
-            imageUrl: form.imageUrl.trim() || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=600&q=80",
+            imageUrl: form.imageUrl.trim() || DEFAULT_MENU_IMAGE,
             isAvailable: form.available,
             isVegetarian: form.isVegetarian,
             isPopular: form.isPopular,

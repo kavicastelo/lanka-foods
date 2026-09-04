@@ -12,9 +12,9 @@ import {
 } from "./image-helpers"
 
 const FALLBACK_IMAGE_URL =
-    "https://static.wixstatic.com/media/12d367_4f26ccd17f8f4e3a8958306ea08c2332~mv2.png"
+    "/images/fallback.webp"
 
-const ImageWrapper = /** @type {any} */ (React.forwardRef(/** @param {any} props */ ({ aspectRatio, className, style, children }, ref) => (
+const ImageWrapper = /** @type {any} */ (React.forwardRef(/** @param {any} props */({ aspectRatio, className, style, children }, ref) => (
     <span
         ref={ref}
         className={cn("inline-block relative", className)}
@@ -26,7 +26,7 @@ const ImageWrapper = /** @type {any} */ (React.forwardRef(/** @param {any} props
 ImageWrapper.displayName = "ImageWrapper"
 
 const ResponsiveImage = /** @type {any} */ (React.forwardRef(
-    /** @param {any} props */ ({ parsed, fittingType, focalPoint, quality, className, style, aspectRatio, onLoad, ...props }, parentRef) => {
+    /** @param {any} props */({ parsed, fittingType, focalPoint, quality, className, style, aspectRatio, onLoad, ...props }, parentRef) => {
         const wrapperRef = React.useRef(null)
         const imgRef = React.useRef(null)
         const size = useSize(wrapperRef)
@@ -116,20 +116,20 @@ ResponsiveImage.displayName = "ResponsiveImage"
  * original swaps to the generic fallback image.
  */
 const Image = /** @type {any} */ (React.forwardRef(
-    /** @param {any} props */ (
-        {
-            src,
-            fittingType = "fill",
-            originWidth,
-            originHeight,
-            focalPointX,
-            focalPointY,
-            quality = 90,
-            onError,
-            ...props
-        },
-        ref
-    ) => {
+    /** @param {any} props */(
+    {
+        src,
+        fittingType = "fill",
+        originWidth,
+        originHeight,
+        focalPointX,
+        focalPointY,
+        quality = 90,
+        onError,
+        ...props
+    },
+    ref
+) => {
         const parsedSource = src && src !== FALLBACK_IMAGE_URL ? parseWixMediaUrl(src) : null
         const initialMode = parsedSource ? IMAGE_LOAD_MODE.OPTIMIZED : IMAGE_LOAD_MODE.ORIGINAL
         const [loadState, setLoadState] = React.useState({ src, mode: initialMode })
