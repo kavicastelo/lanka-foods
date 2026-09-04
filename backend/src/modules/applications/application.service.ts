@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { NotificationService } from '../notifications/notification.service.js';
 import { RestaurantApplication, type IRestaurantApplication } from '../../models/restaurant-application.model.js';
 import { Restaurant } from '../../models/restaurant.model.js';
 import { User } from '../../models/user.model.js';
@@ -67,6 +68,16 @@ export class ApplicationService {
       status: 'pending',
       submittedDate: new Date(),
     });
+
+    // Notify Super Admin
+    await NotificationService.createNotification({
+      role: 'SUPER_ADMIN',
+      type: 'SYSTEM',
+      title: 'New Partner Application Received',
+      message: `New partner application submitted for "${application.businessName}" (${application.city}).`,
+      link: `/admin/dashboard?tab=applications`,
+      metadata: { applicationId: application._id.toString(), businessName: application.businessName },
+    }).catch(() => {});
 
     return toApplicationResponseDto(application);
   }
@@ -217,6 +228,18 @@ export class ApplicationService {
     application.reviewedAt = new Date();
     await application.save();
 
+    // Notify Applicant User
+    await NotificationService.createNotification({
+      userId: application.applicantUserId,
+      role: 'RESTAURANT_ADMIN',
+      restaurantId: restaurant._id,
+      type: 'APPLICATION_APPROVED',
+      title: 'Application Approved!',
+      message: `Congratulations! Your partner application for "${application.businessName}" has been approved. Your store is now active.`,
+      link: `/restaurant/dashboard`,
+      metadata: { applicationId: application._id.toString(), restaurantId: restaurant._id.toString() },
+    }).catch(() => {});
+
     return {
       message: 'Application approved successfully.',
       application: toApplicationResponseDto(application),
@@ -258,6 +281,17 @@ export class ApplicationService {
     application.reviewedBy = new mongoose.Types.ObjectId(adminUserId);
     application.reviewedAt = new Date();
     await application.save();
+
+    // Notify Applicant User
+    await NotificationService.createNotification({
+      userId: application.applicantUserId,
+      role: 'CUSTOMER',
+      type: 'APPLICATION_REJECTED',
+      title: 'Partner Application Update',
+      message: `Your partner application for "${application.businessName}" was not approved. Reason: ${application.rejectionReason || 'Please review application details.'}`,
+      link: `/partner`,
+      metadata: { applicationId: application._id.toString(), reason: application.rejectionReason },
+    }).catch(() => {});
 
     return {
       message: 'Application rejected successfully.',

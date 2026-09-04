@@ -13,6 +13,8 @@ const guestLinks = [
     { label: "Become a Partner", to: "/partner" },
 ];
 
+import NotificationCenter from '@/components/NotificationCenter';
+
 export default function Navbar() {
     const { cartCount } = useMarketplace();
     const { favoriteRestaurants } = useFavorites();

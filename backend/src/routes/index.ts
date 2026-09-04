@@ -10,6 +10,7 @@ import { financialRoutes } from '../modules/financials/financial.routes.js';
 import { invoiceRoutes } from '../modules/invoices/invoice.routes.js';
 import { mediaRoutes } from '../modules/media/media.routes.js';
 import { contactRoutes } from '../modules/contact/contact.routes.js';
+import { notificationRoutes } from '../modules/notifications/notification.routes.js';
 import { menuRoutes } from '../modules/menu/menu.routes.js';
 import { orderRoutes } from '../modules/orders/order.routes.js';
 import { restaurantRoutes } from '../modules/restaurants/restaurant.routes.js';
@@ -36,6 +37,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
   await fastify.register(dashboardRoutes);
   await fastify.register(mediaRoutes);
   await fastify.register(contactRoutes);
+  await fastify.register(notificationRoutes);
 
   // Minimal RBAC Verification Routes (for testing authorization boundaries)
   fastify.get('/api/test/customer', {

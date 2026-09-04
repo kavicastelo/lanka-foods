@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { NotificationService } from '../notifications/notification.service.js';
 import { FinancialRecord } from '../../models/financial-record.model.js';
 import { Invoice, type IInvoice } from '../../models/invoice.model.js';
 import { Order } from '../../models/order.model.js';
@@ -107,6 +108,17 @@ export class InvoiceService {
       issuedAt: new Date(),
     });
 
+    // Notify Restaurant Admin
+    await NotificationService.createNotification({
+      restaurantId: restaurant._id,
+      role: 'RESTAURANT_ADMIN',
+      type: 'INVOICE_ISSUED',
+      title: `Commission Invoice Issued #${invoice.invoiceNumber}`,
+      message: `A new period invoice #${invoice.invoiceNumber} has been issued for ${restaurant.name}.`,
+      link: `/restaurant/dashboard?tab=invoices`,
+      metadata: { invoiceId: invoice._id.toString(), invoiceNumber: invoice.invoiceNumber },
+    }).catch(() => {});
+
     return toInvoiceResponseDto(invoice);
   }
 
@@ -210,6 +222,16 @@ export class InvoiceService {
     invoice.paymentSlipUrl = paymentSlipUrl;
     await invoice.save();
 
+    // Notify Super Admin
+    await NotificationService.createNotification({
+      role: 'SUPER_ADMIN',
+      type: 'PAYMENT_SLIP_UPLOADED',
+      title: 'Payment Slip Uploaded',
+      message: `${ownerRestaurant.name} uploaded a payment slip for invoice #${invoice.invoiceNumber}.`,
+      link: `/admin/dashboard?tab=invoices`,
+      metadata: { invoiceId: invoice._id.toString(), invoiceNumber: invoice.invoiceNumber },
+    }).catch(() => {});
+
     return toInvoiceResponseDto(invoice);
   }
 
@@ -253,6 +275,17 @@ export class InvoiceService {
         },
       }
     );
+
+    // Notify Restaurant Admin
+    await NotificationService.createNotification({
+      restaurantId: invoice.restaurantId,
+      role: 'RESTAURANT_ADMIN',
+      type: 'INVOICE_ISSUED',
+      title: `Invoice Settled #${invoice.invoiceNumber}`,
+      message: `Payment slip for invoice #${invoice.invoiceNumber} has been verified and settled!`,
+      link: `/restaurant/dashboard?tab=invoices`,
+      metadata: { invoiceId: invoice._id.toString(), invoiceNumber: invoice.invoiceNumber },
+    }).catch(() => {});
 
     return toInvoiceResponseDto(invoice);
   }
