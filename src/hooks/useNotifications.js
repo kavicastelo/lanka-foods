@@ -3,6 +3,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsApi } from "@/api/notificationsApi";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 export function useNotifications() {
     const queryClient = useQueryClient();
     const { user } = useMarketplaceUser();
@@ -89,27 +104,39 @@ export function useNotifications() {
         try {
             const permission = await Notification.requestPermission();
             if (permission === "granted") {
-                // If serviceWorker is registered, also register PWA Push subscription
+                // Perform PWA Web Push subscription with VAPID key for background notifications
                 if ("serviceWorker" in navigator) {
                     const reg = await navigator.serviceWorker.ready.catch(() => null);
                     if (reg && reg.pushManager) {
-                        const sub = await reg.pushManager.getSubscription();
-                        if (sub) {
-                            const subJson = sub.toJSON();
-                            if (subJson.endpoint && subJson.keys) {
-                                await notificationsApi.subscribePush({
-                                    endpoint: subJson.endpoint,
-                                    keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
-                                    userAgent: navigator.userAgent,
-                                });
+                        try {
+                            const vapidPublicKey = await notificationsApi.getVapidPublicKey();
+                            if (vapidPublicKey) {
+                                const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+                                let sub = await reg.pushManager.getSubscription();
+                                if (!sub) {
+                                    sub = await reg.pushManager.subscribe({
+                                        userVisibleOnly: true,
+                                        applicationServerKey,
+                                    });
+                                }
+                                const subJson = sub.toJSON();
+                                if (subJson.endpoint && subJson.keys) {
+                                    await notificationsApi.subscribePush({
+                                        endpoint: subJson.endpoint,
+                                        keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
+                                        userAgent: navigator.userAgent,
+                                    });
+                                }
                             }
+                        } catch (err) {
+                            console.warn("Web Push Subscription failed:", err);
                         }
                     }
                 }
 
                 // Send test notification to confirm browser setup
                 new Notification("LankaEats Notifications Enabled!", {
-                    body: "You will now receive desktop notifications for order updates and alerts.",
+                    body: "You will now receive notifications even when LankaEats is in the background or closed.",
                     icon: "/favicon.ico",
                 });
                 return true;

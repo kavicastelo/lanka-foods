@@ -20,4 +20,9 @@ export const notificationsApi = {
     const res = await apiClient.post('/api/notifications/push-subscribe', data);
     return res.data || res;
   },
+
+  async getVapidPublicKey() {
+    const res = await apiClient.get('/api/notifications/vapid-public-key');
+    return res.data?.publicKey;
+  },
 };
