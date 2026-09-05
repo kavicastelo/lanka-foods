@@ -5,6 +5,10 @@ import { PushSubscribeSchema, QueryNotificationsSchema } from './notification.sc
 import { NotificationService } from './notification.service.js';
 
 export async function notificationRoutes(fastify: FastifyInstance) {
+  fastify.get('/api/notifications/vapid-public-key', async (_request, reply) => {
+    return reply.status(200).send({ publicKey: NotificationService.getVapidPublicKey() });
+  });
+
   fastify.get(
     '/api/notifications',
     {

@@ -24,12 +24,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // CORS Middleware Configuration
-  const allowedOrigins = config.CORS_ORIGINS.split(',').map((o) => o.trim());
+  const allowedOrigins = config.CORS_ORIGINS.split(',').map((o) => o.trim().replace(/\/+$/, ''));
   await app.register(fastifyCors, {
     origin: (origin, cb) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      const cleanOrigin = origin.trim().replace(/\/+$/, '');
+      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes('*')) {
         return cb(null, true);
       }
       return cb(new Error('CORS policy does not allow access from this origin.'), false);

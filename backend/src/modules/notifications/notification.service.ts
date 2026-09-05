@@ -1,8 +1,23 @@
 import mongoose from 'mongoose';
+import webpush from 'web-push';
+import { loadEnvConfig } from '../../config/env.js';
 import { logger } from '../../infrastructure/logger/index.js';
 import { Notification, type INotification, type NotificationType } from '../../models/notification.model.js';
 import { PushSubscription } from '../../models/push-subscription.model.js';
 import type { PushSubscribeInput } from './notification.schemas.js';
+
+const config = loadEnvConfig();
+if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+      config.VAPID_SUBJECT || 'mailto:support@lankaeats.fi',
+      config.VAPID_PUBLIC_KEY,
+      config.VAPID_PRIVATE_KEY
+    );
+  } catch (err) {
+    logger.warn({ err }, 'Failed to configure VAPID details for Web Push');
+  }
+}
 
 export interface CreateNotificationParams {
   userId?: string | mongoose.Types.ObjectId;
@@ -16,6 +31,10 @@ export interface CreateNotificationParams {
 }
 
 export class NotificationService {
+  static getVapidPublicKey(): string {
+    return config.VAPID_PUBLIC_KEY || '';
+  }
+
   static async createNotification(params: CreateNotificationParams): Promise<INotification> {
     const notification = await Notification.create({
       userId: params.userId ? new mongoose.Types.ObjectId(params.userId) : undefined,
@@ -33,6 +52,11 @@ export class NotificationService {
       { notificationId: notification._id, type: params.type, role: params.role, userId: params.userId },
       'Notification created successfully'
     );
+
+    // Dispatch Web Push in background to active device subscriptions (even when browser/app is closed)
+    this.sendWebPush(params, notification).catch((err) => {
+      logger.warn({ err }, 'Background Web Push dispatch failed');
+    });
 
     return notification;
   }
@@ -130,5 +154,48 @@ export class NotificationService {
     );
 
     return { success: true };
+  }
+
+  private static async sendWebPush(params: CreateNotificationParams, notification: INotification) {
+    const subConditions: any[] = [];
+    if (params.userId) {
+      subConditions.push({ userId: new mongoose.Types.ObjectId(params.userId) });
+    }
+    if (params.role) {
+      subConditions.push({ role: params.role });
+    }
+
+    if (subConditions.length === 0) return;
+
+    const subscriptions = await PushSubscription.find({ $or: subConditions });
+    if (subscriptions.length === 0) return;
+
+    const payload = JSON.stringify({
+      title: notification.title,
+      message: notification.message,
+      link: notification.link,
+      id: notification._id.toString(),
+      type: notification.type,
+    });
+
+    await Promise.all(
+      subscriptions.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: sub.keys,
+            },
+            payload
+          );
+        } catch (err: any) {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await PushSubscription.deleteOne({ _id: sub._id });
+          } else {
+            logger.warn({ err, endpoint: sub.endpoint }, 'Failed to dispatch Web Push message');
+          }
+        }
+      })
+    );
   }
 }

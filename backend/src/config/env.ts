@@ -33,6 +33,10 @@ const envSchema = z.object({
   ZOHO_SMTP_PASS: z.string().optional().default(''),
   ZOHO_FROM_EMAIL: z.string().optional().default('support@lankaeats.fi'),
   CONTACT_RECEIVER_EMAIL: z.string().optional().default('support@lankaeats.fi'),
+  // Web Push VAPID Configurations
+  VAPID_PUBLIC_KEY: z.string().optional().default('BKNWCUTewcKXDs6IwFbNb5kWvYm-k8xMZbwW8ZebhBkoQUBiNoRBUydzyORvzUnrfFjxywsl3DgyAKDR_actEZ4'),
+  VAPID_PRIVATE_KEY: z.string().optional().default('YQ95giRpiayL-inZanmQXG_5qc51jH559Qzfm9pxi7A'),
+  VAPID_SUBJECT: z.string().optional().default('mailto:support@lankaeats.fi'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
