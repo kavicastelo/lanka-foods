@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { authenticate } from '../../middleware/authenticate.js';
 import { Restaurant } from '../../models/restaurant.model.js';
-import { PushSubscribeSchema, QueryNotificationsSchema } from './notification.schemas.js';
+import { PushSubscribeSchema, PushUnsubscribeSchema, QueryNotificationsSchema } from './notification.schemas.js';
 import { NotificationService } from './notification.service.js';
 
 export async function notificationRoutes(fastify: FastifyInstance) {
@@ -104,4 +104,38 @@ export async function notificationRoutes(fastify: FastifyInstance) {
       return reply.status(200).send(result);
     }
   );
+
+  fastify.post(
+    '/api/notifications/push-unsubscribe',
+    {
+      preHandler: [authenticate],
+    },
+    async (request, reply) => {
+      const user = request.user!;
+      const bodyResult = PushUnsubscribeSchema.safeParse(request.body);
+
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          details: bodyResult.error.flatten().fieldErrors,
+        });
+      }
+
+      const result = await NotificationService.unsubscribePush(user.id, bodyResult.data.endpoint);
+      return reply.status(200).send(result);
+    }
+  );
+
+  fastify.post(
+    '/api/notifications/test-push',
+    {
+      preHandler: [authenticate],
+    },
+    async (request, reply) => {
+      const user = request.user!;
+      const result = await NotificationService.sendTestPush(user.id);
+      return reply.status(200).send(result);
+    }
+  );
 }
+

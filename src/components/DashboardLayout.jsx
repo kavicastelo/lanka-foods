@@ -57,20 +57,20 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                     </div>
                 </aside>
 
-                <div className="min-w-0 flex-1">
-                    <header className="border-b border-border bg-card px-6 py-4">
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <h1 className="font-display text-xl font-700">{title}</h1>
-                                {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+                <div className="min-w-0 flex-1 max-w-full overflow-x-hidden">
+                    <header className="border-b border-border bg-card px-4 sm:px-6 py-4">
+                        <div className="flex items-center justify-between gap-2 sm:gap-4">
+                            <div className="min-w-0">
+                                <h1 className="font-display text-lg sm:text-xl font-700 truncate">{title}</h1>
+                                {subtitle && <p className="text-xs sm:text-sm text-muted-foreground truncate">{subtitle}</p>}
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                 <NotificationCenter />
                                 {actions}
                             </div>
                         </div>
                     </header>
-                    <div className="flex gap-1 overflow-x-auto border-b border-border bg-card px-4 py-2 no-scrollbar lg:hidden">
+                    <div className="flex gap-1 overflow-x-auto border-b border-border bg-card px-3 sm:px-4 py-2 no-scrollbar lg:hidden">
                         {nav.map((n) => (
                             <button
                                 key={n.id}
@@ -84,8 +84,9 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                             </button>
                         ))}
                     </div>
-                    <main className="p-6">{children}</main>
+                    <main className="p-3 sm:p-6 max-w-full overflow-x-hidden">{children}</main>
                 </div>
+
             </div>
         </div>
     );

@@ -33,18 +33,19 @@ export default function Cart() {
     }
 
     return (
-        <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-10">
             <Link to={`/restaurant/${cartRestaurant.slug}`} className="mb-4 inline-flex items-center gap-1.5 text-sm font-600 text-primary hover:underline">
                 <ArrowLeft className="h-4 w-4" /> Continue shopping
             </Link>
-            <h1 className="font-display text-3xl font-600">Your cart</h1>
-            <p className="mt-1 text-sm text-muted-foreground">All items are from <span className="font-600 text-foreground">{cartRestaurant.name}</span>. A cart holds items from one restaurant at a time.</p>
+            <h1 className="font-display text-2xl sm:text-3xl font-600">Your cart</h1>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">All items are from <span className="font-600 text-foreground">{cartRestaurant.name}</span>. A cart holds items from one restaurant at a time.</p>
 
-            <div className="mt-8 grid gap-8 lg:grid-cols-3">
+            <div className="mt-6 sm:mt-8 grid gap-6 sm:gap-8 lg:grid-cols-3">
                 <div className="lg:col-span-2">
                     <div className="overflow-hidden rounded-2xl border border-border bg-card">
                         {cart.items.map((item, i) => (
-                            <div key={item.id} className={`flex gap-4 p-4 ${i > 0 ? "border-t border-border" : ""}`}>
+                            <div key={item.id} className={`flex gap-3 p-3 sm:gap-4 sm:p-4 ${i > 0 ? "border-t border-border" : ""}`}>
+
                                 <Image src={item.image || item.imageUrl || item.image_url} alt={item.name} fittingType="fill" className="h-20 w-20 shrink-0 rounded-xl" />
                                 <div className="flex flex-1 flex-col">
                                     <div className="flex items-start justify-between">

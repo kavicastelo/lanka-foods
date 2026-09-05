@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Bell, CheckCheck, PackageCheck, ShoppingBag, FileText, CreditCard, Store, AlertCircle, Star, Sparkles } from "lucide-react";
+
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +9,8 @@ export default function NotificationCenter() {
     const [open, setOpen] = useState(false);
     const containerRef = useRef(null);
     const navigate = useNavigate();
-    const { notifications, unreadCount, markAsRead, markAllAsRead, isMarkingRead, requestPushPermission, permissionStatus } = useNotifications();
+    const { notifications, unreadCount, markAsRead, markAllAsRead, isMarkingRead, requestPushPermission, sendTestPush, permissionStatus } = useNotifications();
+    const [sendingTest, setSendingTest] = useState(false);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -38,6 +40,18 @@ export default function NotificationCenter() {
         }
     };
 
+    const handleSendTestPush = async () => {
+        try {
+            setSendingTest(true);
+            await sendTestPush();
+        } catch (e) {
+            console.error("Test push error:", e);
+        } finally {
+            setSendingTest(false);
+        }
+    };
+
+
     return (
         <div ref={containerRef} className="relative">
             <button
@@ -54,7 +68,8 @@ export default function NotificationCenter() {
             </button>
 
             {open && (
-                <div className="absolute right-0 top-12 z-50 w-80 sm:w-96 rounded-2xl border border-border bg-card p-4 shadow-xl space-y-3">
+                <div className="absolute -right-2 sm:right-0 top-12 z-50 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-2xl border border-border bg-card p-4 shadow-xl space-y-3">
+
                     <div className="flex items-center justify-between border-b border-border pb-3">
                         <div className="flex items-center gap-2">
                             <h3 className="font-display text-base font-700">Notifications</h3>
@@ -109,9 +124,18 @@ export default function NotificationCenter() {
 
                     <div className="border-t border-border pt-2 flex justify-between items-center text-[11px] text-muted-foreground">
                         {permissionStatus === "granted" ? (
-                            <span className="text-emerald-600 dark:text-emerald-400 font-600 flex items-center gap-1">
-                                ✓ Desktop Alerts Active
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-emerald-600 dark:text-emerald-400 font-600 flex items-center gap-1">
+                                    ✓ Desktop Alerts Active
+                                </span>
+                                <button
+                                    onClick={handleSendTestPush}
+                                    disabled={sendingTest}
+                                    className="text-[10px] bg-primary/10 hover:bg-primary/20 text-primary font-600 px-2 py-0.5 rounded-full transition disabled:opacity-50"
+                                >
+                                    {sendingTest ? "Sending..." : "Test Push"}
+                                </button>
+                            </div>
                         ) : (
                             <button onClick={handleEnablePush} className="hover:text-primary underline font-600">
                                 Enable Desktop Alerts
@@ -124,6 +148,7 @@ export default function NotificationCenter() {
         </div>
     );
 }
+
 
 function NotificationIcon({ type }) {
     switch (type) {

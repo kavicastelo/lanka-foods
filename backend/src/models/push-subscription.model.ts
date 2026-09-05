@@ -9,6 +9,9 @@ export interface IPushSubscription extends Document {
     auth: string;
   };
   userAgent?: string;
+  lastSuccessAt?: Date;
+  lastFailureAt?: Date;
+  failureCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +27,7 @@ const pushSubscriptionSchema = new Schema<IPushSubscription>(
     role: {
       type: String,
       required: true,
+      index: true,
     },
     endpoint: {
       type: String,
@@ -39,13 +43,26 @@ const pushSubscriptionSchema = new Schema<IPushSubscription>(
       type: String,
       default: '',
     },
+    lastSuccessAt: {
+      type: Date,
+    },
+    lastFailureAt: {
+      type: Date,
+    },
+    failureCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
   }
 );
 
+pushSubscriptionSchema.index({ userId: 1, endpoint: 1 });
+
 export const PushSubscription = mongoose.model<IPushSubscription>(
   'PushSubscription',
   pushSubscriptionSchema
 );
+

@@ -24,14 +24,16 @@ export function useNotifications() {
     const seenNotificationIdsRef = useRef(new Set());
     const isFirstLoadRef = useRef(true);
 
+    const userId = user?.id || user?.user?.id;
+
     const query = useQuery({
-        queryKey: ["notifications", user?.id],
+        queryKey: ["notifications", userId],
         queryFn: async () => {
             if (!user) return { notifications: [], unreadCount: 0 };
             return await notificationsApi.getNotifications();
         },
         enabled: Boolean(user),
-        refetchInterval: 10000, // Poll every 10s for web & PWA live updates
+        refetchInterval: 8000, // Poll every 8s for live notifications
     });
 
     const notifications = query.data?.notifications || [];
@@ -148,6 +150,46 @@ export function useNotifications() {
         }
     };
 
+    // Auto-sync existing push subscription when authenticated user loads app
+    useEffect(() => {
+        if (!user || typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") {
+            return;
+        }
+
+        const syncExistingPushSubscription = async () => {
+            if (!("serviceWorker" in navigator)) return;
+            const reg = await navigator.serviceWorker.ready.catch(() => null);
+            if (!reg || !reg.pushManager) return;
+
+            try {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                    const subJson = sub.toJSON();
+                    if (subJson.endpoint && subJson.keys) {
+                        await notificationsApi.subscribePush({
+                            endpoint: subJson.endpoint,
+                            keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
+                            userAgent: navigator.userAgent,
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn("Background push auto-sync failed:", err);
+            }
+        };
+
+        syncExistingPushSubscription();
+    }, [user]);
+
+    const sendTestPush = async () => {
+        try {
+            return await notificationsApi.sendTestPush();
+        } catch (err) {
+            console.error("Failed to trigger test push notification:", err);
+            throw err;
+        }
+    };
+
     return {
         notifications,
         unreadCount: query.data?.unreadCount || 0,
@@ -156,6 +198,8 @@ export function useNotifications() {
         markAllAsRead: markAllAsRead.mutate,
         isMarkingRead: markAsRead.isPending || markAllAsRead.isPending,
         requestPushPermission,
+        sendTestPush,
         permissionStatus: typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
     };
 }
+

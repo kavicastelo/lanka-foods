@@ -21,8 +21,19 @@ export const notificationsApi = {
     return res.data || res;
   },
 
+  async unsubscribePush(data) {
+    const res = await apiClient.post('/api/notifications/push-unsubscribe', data);
+    return res.data || res;
+  },
+
+  async sendTestPush() {
+    const res = await apiClient.post('/api/notifications/test-push');
+    return res.data || res;
+  },
+
   async getVapidPublicKey() {
     const res = await apiClient.get('/api/notifications/vapid-public-key');
     return res.data?.publicKey;
   },
 };
+

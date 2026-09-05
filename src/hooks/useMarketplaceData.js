@@ -305,8 +305,9 @@ export function useFavorites() {
 
 export function useMyOrders() {
     const { user } = useMarketplaceUser();
+    const userId = user?.id || user?.user?.id;
     return useQuery({
-        queryKey: ["myOrders", user?.id],
+        queryKey: ["myOrders", userId],
         queryFn: async () => {
             if (!user) return [];
             const res = await ordersApi.getMyOrders();
@@ -314,6 +315,7 @@ export function useMyOrders() {
             return orders.map(mapOrder);
         },
         enabled: !!user,
+        refetchInterval: 10000,
     });
 }
 
@@ -327,6 +329,13 @@ export function useOrderById(orderId) {
             return mapOrder(rawOrder);
         },
         enabled: !!orderId,
+        refetchInterval: (query) => {
+            const status = query.state.data?.status;
+            if (status && ["completed", "cancelled", "rejected"].includes(status)) {
+                return false;
+            }
+            return 5000;
+        },
     });
 }
 

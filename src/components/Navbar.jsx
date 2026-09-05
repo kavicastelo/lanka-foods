@@ -94,6 +94,8 @@ export default function Navbar() {
                         </>
                     )}
 
+                    {user && <NotificationCenter />}
+
                     {!isAdmin && (
                         <Link to="/cart" className="relative rounded-full p-2.5 transition hover:bg-secondary" title="Cart">
                             <ShoppingBag className="h-5 w-5" />

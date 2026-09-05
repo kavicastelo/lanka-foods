@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Download, X, UtensilsCrossed, Share, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 
 const DISMISS_KEY = "lankaeats_pwa_banner_dismissed_until";
 const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
