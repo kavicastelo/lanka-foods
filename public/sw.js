@@ -17,7 +17,6 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  self.skipWaiting();
 });
 
 // 2. Activate Event: Clean up old caches
@@ -76,21 +75,39 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// 5. Notification Click Handler
+// 5. Notification Click Handler: Deep-link navigate or open window
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const relativeUrl = event.notification.data?.url || '/';
+  const targetUrl = new URL(relativeUrl, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // 1. If exact URL window exists, focus it
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if (client.url === targetUrl && 'focus' in client) {
           return client.focus();
         }
       }
+      // 2. Otherwise focus any open window on origin and navigate to targetUrl
+      for (const client of clientList) {
+        if ('focus' in client && 'navigate' in client) {
+          return client.focus().then(() => client.navigate(targetUrl));
+        }
+      }
+      // 3. Otherwise open a new window
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }
     })
   );
 });
+
+
+// 6. Message Listener for PWA Update SKIP_WAITING
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+

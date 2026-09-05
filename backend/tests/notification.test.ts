@@ -110,4 +110,58 @@ describe('Notification Service & API Endpoints', () => {
     expect(body.success).toBe(true);
     expect(body.updatedCount).toBeGreaterThanOrEqual(1);
   });
+
+  it('POST /api/notifications/push-subscribe — should persist push subscription for authenticated user', async () => {
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/notifications/push-subscribe',
+      headers: {
+        authorization: `Bearer ${customerToken}`,
+      },
+      payload: {
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test-sub-123',
+        keys: {
+          p256dh: 'test-p256dh-key',
+          auth: 'test-auth-key',
+        },
+        userAgent: 'Vitest Automated Engine',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().success).toBe(true);
+  });
+
+  it('POST /api/notifications/test-push — should trigger test push diagnostic workflow', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/notifications/test-push',
+      headers: {
+        authorization: `Bearer ${customerToken}`,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.dispatchedCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('POST /api/notifications/push-unsubscribe — should remove push subscription for user', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/notifications/push-unsubscribe',
+      headers: {
+        authorization: `Bearer ${customerToken}`,
+      },
+      payload: {
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test-sub-123',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().success).toBe(true);
+  });
 });
+

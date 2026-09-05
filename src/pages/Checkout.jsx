@@ -77,26 +77,27 @@ export default function Checkout() {
     };
 
     return (
-        <div className="mx-auto max-w-3xl px-6 py-10">
-            <h1 className="font-display text-3xl font-600">Checkout</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Ordering from <span className="font-600 text-foreground">{restaurant.name}</span></p>
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-10">
+            <h1 className="font-display text-2xl sm:text-3xl font-600">Checkout</h1>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Ordering from <span className="font-600 text-foreground">{restaurant.name}</span></p>
 
             {/* Stepper */}
-            <div className="mt-6 flex items-center">
+            <div className="mt-6 flex items-center overflow-x-auto no-scrollbar py-1">
                 {steps.map((s, i) => (
                     <React.Fragment key={s}>
-                        <div className="flex items-center gap-2">
-                            <div className={cn("grid h-8 w-8 place-items-center rounded-full text-sm font-700 transition", i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-spice-gradient text-white" : "bg-secondary text-muted-foreground")}>
-                                {i < step ? <Check className="h-4 w-4" /> : i + 1}
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <div className={cn("grid h-7 w-7 sm:h-8 sm:w-8 place-items-center rounded-full text-xs sm:text-sm font-700 transition", i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-spice-gradient text-white" : "bg-secondary text-muted-foreground")}>
+                                {i < step ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : i + 1}
                             </div>
-                            <span className={cn("hidden text-sm font-600 sm:block", i === step ? "text-foreground" : "text-muted-foreground")}>{s}</span>
+                            <span className={cn("hidden text-xs sm:text-sm font-600 sm:block", i === step ? "text-foreground" : "text-muted-foreground")}>{s}</span>
                         </div>
-                        {i < steps.length - 1 && <div className={cn("mx-2 h-0.5 flex-1 rounded-full", i < step ? "bg-primary" : "bg-border")} />}
+                        {i < steps.length - 1 && <div className={cn("mx-1.5 sm:mx-2 h-0.5 min-w-4 flex-1 rounded-full", i < step ? "bg-primary" : "bg-border")} />}
                     </React.Fragment>
                 ))}
             </div>
 
-            <div className="mt-8 rounded-2xl border border-border bg-card p-6">
+            <div className="mt-6 sm:mt-8 rounded-2xl border border-border bg-card p-4 sm:p-6">
+
                 {step === 0 && (
                     <div>
                         <h2 className="font-display text-xl font-600">How would you like to receive your order?</h2>

@@ -14,5 +14,11 @@ export const PushSubscribeSchema = z.object({
   userAgent: z.string().optional().default(''),
 });
 
+export const PushUnsubscribeSchema = z.object({
+  endpoint: z.string().url('Endpoint must be a valid URL'),
+});
+
 export type QueryNotificationsInput = z.infer<typeof QueryNotificationsSchema>;
 export type PushSubscribeInput = z.infer<typeof PushSubscribeSchema>;
+export type PushUnsubscribeInput = z.infer<typeof PushUnsubscribeSchema>;
+

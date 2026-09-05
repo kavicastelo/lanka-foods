@@ -131,22 +131,22 @@ export default function Home() {
                     <Image src={IMG.hero} alt="Sri Lankan food" fittingType="fill" className="h-full w-full" />
                     <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/25" />
                 </div>
-                <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:py-40">
+                <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-32 lg:py-40">
                     <div className="max-w-2xl">
                         <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-600 uppercase tracking-widest text-white backdrop-blur">
                             <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Authentic · Local · Fresh
                         </span>
-                        <h1 className="mt-5 font-display text-4xl font-600 leading-[1.05] text-white text-balance sm:text-5xl lg:text-6xl">
+                        <h1 className="mt-5 font-display text-3xl font-600 leading-[1.05] text-white text-balance sm:text-5xl lg:text-6xl">
                             Discover the taste of Asia
                         </h1>
-                        <p className="mt-5 max-w-xl text-lg text-white/85">
+                        <p className="mt-4 sm:mt-5 max-w-xl text-base sm:text-lg text-white/85">
                             Find Sri Lankan restaurants, home chefs and food stores near you. Browse menus, order online and enjoy authentic Sri Lankan food.
                         </p>
 
-                        <form onSubmit={explore} className="mt-8 rounded-2xl bg-white p-2 shadow-2xl sm:flex sm:items-center">
+                        <form onSubmit={explore} className="mt-6 sm:mt-8 rounded-2xl bg-white p-2 shadow-2xl sm:flex sm:items-center">
                             <div className="flex items-center gap-2 border-b border-border px-3 py-2 sm:border-b-0 sm:border-r">
                                 <MapPin className="h-5 w-5 text-primary" />
-                                <select value={city} onChange={(e) => setCity(e.target.value)} className="bg-transparent text-sm font-600 outline-none">
+                                <select value={city} onChange={(e) => setCity(e.target.value)} className="bg-transparent text-sm font-600 outline-none max-w-[120px]">
                                     {cities.map((c) => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
@@ -173,7 +173,7 @@ export default function Home() {
 
             {/* Stats strip */}
             <section className="border-b border-border bg-card">
-                <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-6 py-8 sm:grid-cols-4">
+                <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 sm:px-6 py-8 sm:grid-cols-4">
                     <Stat icon={Store} value={`${restaurants.length}+`} label="Food businesses" />
                     <Stat icon={Bike} value="2 cities" label="Delivery areas" />
                     <Stat icon={Star} value="4.7★" label="Average rating" />
@@ -182,17 +182,17 @@ export default function Home() {
             </section>
 
             {/* Categories */}
-            <section className="mx-auto max-w-7xl px-6 py-16">
+            <section className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
                 <div className="flex items-end justify-between">
                     <div>
-                        <h2 className="font-display text-3xl font-600">Browse by category</h2>
-                        <p className="mt-1 text-muted-foreground">From rice & curry to kottu, hoppers and sweets.</p>
+                        <h2 className="font-display text-2xl sm:text-3xl font-600">Browse by category</h2>
+                        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">From rice & curry to kottu, hoppers and sweets.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         {allCategories.length > 6 && (
                             <button
                                 onClick={() => setShowAllCategories((prev) => !prev)}
-                                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-sm font-600 transition hover:border-primary"
+                                className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 sm:px-4 sm:py-1.5 text-xs sm:text-sm font-600 transition hover:border-primary"
                             >
                                 <Grid className="h-4 w-4 text-primary" />
                                 {showAllCategories ? "Show less" : "More categories"}
@@ -202,7 +202,7 @@ export default function Home() {
                         <Link to="/restaurants" className="hidden text-sm font-600 text-primary hover:underline sm:block">View all</Link>
                     </div>
                 </div>
-                <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="mt-6 sm:mt-8 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 lg:grid-cols-6">
                     {displayedCategories.map((c) => {
                         const icon = categoryIconMap[c.name.toLowerCase().trim()] || c.image_url || "🍛";
                         const countText = categoryCountMap[c.name.toLowerCase().trim()] || "10+ dishes";
@@ -210,14 +210,14 @@ export default function Home() {
                             <Link
                                 key={c.id}
                                 to={`/restaurants?cat=${encodeURIComponent(c.name)}`}
-                                className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-5 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-warm"
+                                className="group flex flex-col items-center gap-2.5 rounded-2xl border border-border bg-card p-4 sm:p-5 text-center transition-all hover:-translate-y-1 hover:border-primary hover:shadow-warm"
                             >
-                                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-spice-gradient/10 text-3xl transition group-hover:scale-110">
+                                <div className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl bg-spice-gradient/10 text-2xl sm:text-3xl transition group-hover:scale-110">
                                     {icon}
                                 </div>
                                 <div>
-                                    <div className="text-sm font-700">{c.name}</div>
-                                    <div className="mt-0.5 text-xs text-muted-foreground font-500">{countText}</div>
+                                    <div className="text-xs sm:text-sm font-700">{c.name}</div>
+                                    <div className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground font-500">{countText}</div>
                                 </div>
                             </Link>
                         );
@@ -226,15 +226,15 @@ export default function Home() {
             </section>
 
             {/* Best Restaurants */}
-            <section className="mx-auto max-w-7xl px-6 pb-16">
+            <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-12 sm:pb-16">
                 <div className="flex items-end justify-between">
                     <div>
-                        <h2 className="font-display text-3xl font-600">Best restaurants</h2>
-                        <p className="mt-1 text-muted-foreground">Top-rated Sri Lankan spots loved by our foodies.</p>
+                        <h2 className="font-display text-2xl sm:text-3xl font-600">Best restaurants</h2>
+                        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">Top-rated Sri Lankan spots loved by our foodies.</p>
                     </div>
                     <Link to="/restaurants" className="hidden text-sm font-600 text-primary hover:underline sm:block">See all restaurants</Link>
                 </div>
-                <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mt-6 sm:mt-8 grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {isLoading && <p className="text-muted-foreground">Loading restaurants…</p>}
                     {!isLoading && bestRestaurants.length === 0 && <p className="text-muted-foreground">No active restaurants available.</p>}
                     {bestRestaurants.map((r) => <RestaurantCard key={r.id} restaurant={r} />)}
@@ -242,7 +242,8 @@ export default function Home() {
             </section>
 
             {/* Partner CTA */}
-            <section className="mx-auto max-w-7xl px-6 pb-20">
+            <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-16 sm:pb-20">
+
                 <div className="relative overflow-hidden rounded-3xl bg-spice-gradient px-8 py-14 text-white sm:px-14">
                     <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
                     <div className="absolute -bottom-16 right-24 h-56 w-56 rounded-full bg-white/10" />

@@ -4,6 +4,7 @@ import { loadEnvConfig } from '../../config/env.js';
 import { logger } from '../../infrastructure/logger/index.js';
 import { Notification, type INotification, type NotificationType } from '../../models/notification.model.js';
 import { PushSubscription } from '../../models/push-subscription.model.js';
+import { Restaurant } from '../../models/restaurant.model.js';
 import type { PushSubscribeInput } from './notification.schemas.js';
 
 const config = loadEnvConfig();
@@ -156,19 +157,59 @@ export class NotificationService {
     return { success: true };
   }
 
+  static async unsubscribePush(userId: string, endpoint: string): Promise<{ success: boolean }> {
+    await PushSubscription.deleteOne({
+      userId: new mongoose.Types.ObjectId(userId),
+      endpoint,
+    });
+    return { success: true };
+  }
+
+  static async sendTestPush(userId: string): Promise<{ success: boolean; dispatchedCount: number }> {
+    await this.createNotification({
+      userId,
+      type: 'SYSTEM',
+      title: 'LankaEats Test Push',
+      message: 'Background Web Push notification pipeline verified successfully!',
+      link: '/',
+    });
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const subscriptions = await PushSubscription.find({ userId: userObjectId });
+
+    return {
+      success: true,
+      dispatchedCount: subscriptions.length,
+    };
+  }
+
   private static async sendWebPush(params: CreateNotificationParams, notification: INotification) {
-    const subConditions: any[] = [];
+
+
+    let targetSubscriptions: any[] = [];
+
+    // STRICT TARGETING:
+    // 1. If explicit userId is provided, strictly target ONLY subscriptions for that userId.
     if (params.userId) {
-      subConditions.push({ userId: new mongoose.Types.ObjectId(params.userId) });
+      targetSubscriptions = await PushSubscription.find({
+        userId: new mongoose.Types.ObjectId(params.userId),
+      });
     }
-    if (params.role) {
-      subConditions.push({ role: params.role });
+    // 2. If restaurantId is provided without explicit userId, resolve restaurant owner and target owner's subscriptions.
+    else if (params.restaurantId) {
+      const restaurant = await Restaurant.findById(params.restaurantId);
+      if (restaurant && restaurant.ownerId) {
+        targetSubscriptions = await PushSubscription.find({
+          userId: restaurant.ownerId,
+        });
+      }
+    }
+    // 3. System-wide role broadcasts (e.g. SUPER_ADMIN)
+    else if (params.role === 'SUPER_ADMIN') {
+      targetSubscriptions = await PushSubscription.find({ role: 'SUPER_ADMIN' });
     }
 
-    if (subConditions.length === 0) return;
-
-    const subscriptions = await PushSubscription.find({ $or: subConditions });
-    if (subscriptions.length === 0) return;
+    if (targetSubscriptions.length === 0) return;
 
     const payload = JSON.stringify({
       title: notification.title,
@@ -179,7 +220,7 @@ export class NotificationService {
     });
 
     await Promise.all(
-      subscriptions.map(async (sub) => {
+      targetSubscriptions.map(async (sub) => {
         try {
           await webpush.sendNotification(
             {
@@ -188,14 +229,30 @@ export class NotificationService {
             },
             payload
           );
+
+          await PushSubscription.updateOne(
+            { _id: sub._id },
+            {
+              $set: { lastSuccessAt: new Date(), failureCount: 0 },
+            }
+          );
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
+            logger.info({ endpoint: sub.endpoint, statusCode: err.statusCode }, 'Pruning expired/invalid push subscription');
             await PushSubscription.deleteOne({ _id: sub._id });
           } else {
             logger.warn({ err, endpoint: sub.endpoint }, 'Failed to dispatch Web Push message');
+            await PushSubscription.updateOne(
+              { _id: sub._id },
+              {
+                $set: { lastFailureAt: new Date() },
+                $inc: { failureCount: 1 },
+              }
+            );
           }
         }
       })
     );
   }
 }
+
