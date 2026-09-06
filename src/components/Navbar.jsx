@@ -40,12 +40,12 @@ export default function Navbar() {
 
     return (
         <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl">
-            <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
+            <div className="mx-auto flex justify-between h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
                 <Link to="/" className="flex items-center gap-2 shrink-0">
                     <div className="grid h-9 w-9 place-items-center rounded-xl bg-spice-gradient text-white shadow-warm">
                         <UtensilsCrossed className="h-5 w-5" />
                     </div>
-                    <div className="leading-none">
+                    <div className="hidden sm:block leading-none">
                         <span className="font-display text-xl font-600 tracking-tight">LankaEats</span>
                         <span className="ml-1 text-[10px] font-600 uppercase tracking-widest text-primary">Finland</span>
                     </div>
@@ -70,7 +70,7 @@ export default function Navbar() {
                     </form>
                 )}
 
-                <div className={cn("flex items-center gap-1", !isAdmin && "ml-auto md:ml-2")}>
+                <div className={cn("flex items-center gap-1 ml-auto md:ml-2")}>
                     {isAdmin && (
                         <Link to={roleHome(marketplaceRole)} className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-700 text-primary-foreground">
                             <LayoutDashboard className="h-4 w-4" /> Dashboard
@@ -104,9 +104,14 @@ export default function Navbar() {
                     )}
 
                     {user && (
-                        <button onClick={handleLogout} className="hidden items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-600 hover:border-primary sm:flex">
-                            <LogOut className="h-4 w-4" /> Logout
-                        </button>
+                        <>
+                            <button onClick={handleLogout} className="hidden items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-600 hover:border-primary sm:flex" title="Logout">
+                                <LogOut className="h-4 w-4" /> Logout
+                            </button>
+                            <button onClick={handleLogout} className="grid h-9 w-9 place-items-center rounded-full border border-border text-foreground transition hover:border-primary sm:hidden" title="Logout">
+                                <LogOut className="h-4 w-4" />
+                            </button>
+                        </>
                     )}
 
                     <button onClick={() => setOpen((o) => !o)} className="rounded-full p-2.5 transition hover:bg-secondary lg:hidden">
@@ -129,10 +134,11 @@ export default function Navbar() {
                         {marketplaceRole === "CUSTOMER" && <Link to="/account" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-500 hover:bg-secondary">My Account</Link>}
                         {!user && <Link to="/login" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-500 hover:bg-secondary">Sign in</Link>}
                         {!user && <Link to="/register" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-500 hover:bg-secondary">Get started</Link>}
-                        {user && <button onClick={() => { handleLogout(); setOpen(false); }} className="rounded-lg px-3 py-2.5 text-left text-sm font-500 text-destructive hover:bg-secondary">Logout</button>}
+                        {user && !isAdmin && <button onClick={() => { handleLogout(); setOpen(false); }} className="rounded-lg px-3 py-2.5 text-left text-sm font-500 text-destructive hover:bg-secondary flex items-center gap-2"><LogOut className="h-4 w-4" /> Logout</button>}
                     </div>
                 </div>
             )}
+
         </header>
     );
 }
