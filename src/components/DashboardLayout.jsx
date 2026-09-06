@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { UtensilsCrossed, LogOut, ExternalLink } from "lucide-react";
+import { UtensilsCrossed, LogOut, ArrowLeft } from "lucide-react";
+
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { authApi } from "@/api/authApi";
 import NotificationCenter from "@/components/NotificationCenter";
@@ -24,7 +25,7 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                         <div className="grid h-9 w-9 place-items-center rounded-xl bg-spice-gradient text-white shadow-warm">
                             <UtensilsCrossed className="h-5 w-5" />
                         </div>
-                        <div className="leading-none">
+                        <div className="hidden sm:block leading-none">
                             <span className="font-display text-lg font-600 tracking-tight">LankaEats</span>
                             <span className="ml-1 text-[10px] font-600 uppercase tracking-widest text-primary">Panel</span>
                         </div>
@@ -49,7 +50,7 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                             <div className="text-[11px] text-muted-foreground">{user?.email}</div>
                         </div>
                         <Link to="/" className="mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-600 text-muted-foreground hover:bg-secondary">
-                            <ExternalLink className="h-3.5 w-3.5" /> View marketplace
+                            <ArrowLeft className="h-3.5 w-3.5" /> Back to marketplace
                         </Link>
                         <button onClick={handleLogout} className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-600 text-destructive hover:bg-destructive/10">
                             <LogOut className="h-3.5 w-3.5" /> Logout
@@ -60,9 +61,18 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                 <div className="min-w-0 flex-1 max-w-full overflow-x-hidden">
                     <header className="border-b border-border bg-card px-4 sm:px-6 py-4">
                         <div className="flex items-center justify-between gap-2 sm:gap-4">
-                            <div className="min-w-0">
-                                <h1 className="font-display text-lg sm:text-xl font-700 truncate">{title}</h1>
-                                {subtitle && <p className="text-xs sm:text-sm text-muted-foreground truncate">{subtitle}</p>}
+                            <div className="min-w-0 flex items-center gap-3">
+                                <Link
+                                    to="/"
+                                    className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/70 px-3 py-1.5 text-xs font-600 text-foreground transition hover:bg-secondary hover:border-primary shrink-0"
+                                    title="Back to Marketplace"
+                                >
+                                    <ArrowLeft className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Back to Marketplace</span><span className="sm:hidden">Back</span>
+                                </Link>
+                                <div className="min-w-0">
+                                    <h1 className="font-display text-base sm:text-xl font-700 truncate">{title}</h1>
+                                    {subtitle && <p className="text-xs sm:text-sm text-muted-foreground truncate hidden sm:block">{subtitle}</p>}
+                                </div>
                             </div>
                             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                 <NotificationCenter />
@@ -71,6 +81,12 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                         </div>
                     </header>
                     <div className="flex gap-1 overflow-x-auto border-b border-border bg-card px-3 sm:px-4 py-2 no-scrollbar lg:hidden">
+                        <Link
+                            to="/"
+                            className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary border border-border px-3 py-1.5 text-xs font-600 text-foreground transition hover:bg-secondary/80"
+                        >
+                            <ArrowLeft className="h-3.5 w-3.5 text-primary" /> Back
+                        </Link>
                         {nav.map((n) => (
                             <button
                                 key={n.id}
@@ -86,6 +102,7 @@ export default function DashboardLayout({ nav, active, onNavigate, title, subtit
                     </div>
                     <main className="p-3 sm:p-6 max-w-full overflow-x-hidden">{children}</main>
                 </div>
+
 
             </div>
         </div>
