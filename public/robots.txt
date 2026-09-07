@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Allow: /restaurants
+Allow: /restaurant/
+Allow: /about
+Allow: /partner
+Allow: /for-partners
+Allow: /terms
+Allow: /privacy
+Allow: /contact
+
+Disallow: /admin/
+Disallow: /restaurant/dashboard
+Disallow: /account
+Disallow: /checkout
+Disallow: /order/
+Disallow: /cart
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://lankaeats.fi/sitemap.xml

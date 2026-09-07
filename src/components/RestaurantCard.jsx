@@ -13,11 +13,12 @@ export default function RestaurantCard({ restaurant, variant: _variant = "grid" 
         <div className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-warm">
             <div className="relative h-44 overflow-hidden">
                 <Link to={`/restaurant/${restaurant.slug}`}>
-                    <Image src={restaurant.cover} alt={restaurant.name} fittingType="fill" className="h-full w-full transition-transform duration-500 group-hover:scale-105" />
+                    <Image src={restaurant.cover} alt={restaurant.name} originWidth={16} originHeight={7} fittingType="fill" className="h-full w-full transition-transform duration-500 group-hover:scale-105" />
                 </Link>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                 <button
                     onClick={() => toggleFavoriteRestaurant(restaurant.id)}
+                    aria-label={fav ? `Remove ${restaurant.name} from favorites` : `Add ${restaurant.name} to favorites`}
                     className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-foreground shadow-sm backdrop-blur transition hover:scale-110"
                 >
                     <Heart className={cn("h-4 w-4", fav && "fill-primary text-primary")} />
