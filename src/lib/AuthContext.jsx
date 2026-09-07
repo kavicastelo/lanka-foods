@@ -7,7 +7,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+    const [isLoadingAuth, setIsLoadingAuth] = useState(() => !!tokenStorage.getToken());
     const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
     const [authError, setAuthError] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);

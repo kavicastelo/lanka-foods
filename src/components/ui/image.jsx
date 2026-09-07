@@ -89,7 +89,8 @@ const ResponsiveImage = /** @type {any} */ (React.forwardRef(
                         ref={imgRef}
                         src={buildTransformUrl(parsed, options)}
                         srcSet={buildSrcSet(parsed, options)}
-                        loading="lazy"
+                        loading={props.priority || props.loading === "eager" ? "eager" : (props.loading || "lazy")}
+                        fetchPriority={props.priority || props.fetchPriority === "high" ? "high" : undefined}
                         className={cn(
                             "w-full h-full inset-0 absolute",
                             fittingType === "fit" ? "object-contain" : "object-cover"

@@ -158,6 +158,7 @@ export default function Restaurants() {
                     value={q}
                     onChange={(e) => setParam("q", e.target.value)}
                     placeholder="Search restaurants or dishes"
+                    aria-label="Search restaurants or dishes"
                     className="w-full rounded-full border border-border bg-card py-3 pl-12 pr-4 text-sm outline-none focus:border-primary"
                 />
             </div>
@@ -165,21 +166,23 @@ export default function Restaurants() {
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
                 <button
                     onClick={() => setShowFilters((s) => !s)}
+                    aria-label="Toggle extra filters"
                     className="flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-600 hover:border-primary"
                 >
                     <SlidersHorizontal className="h-4 w-4" /> Filters {activeCount > 0 && <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[11px] text-primary-foreground">{activeCount}</span>}
                 </button>
-                <select value={city} onChange={(e) => setParam("city", e.target.value)} className="shrink-0 rounded-full border border-border bg-card px-4 py-2 text-sm font-600 outline-none">
+                <select value={city} onChange={(e) => setParam("city", e.target.value)} aria-label="Filter by location" className="shrink-0 rounded-full border border-border bg-card px-4 py-2 text-sm font-600 outline-none">
                     <option value="">All locations</option>
                     {cities.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <select value={sort} onChange={(e) => setParam("sort", e.target.value)} className="shrink-0 rounded-full border border-border bg-card px-4 py-2 text-sm font-600 outline-none">
+                <select value={sort} onChange={(e) => setParam("sort", e.target.value)} aria-label="Sort options" className="shrink-0 rounded-full border border-border bg-card px-4 py-2 text-sm font-600 outline-none">
                     {sortOptions.map((s) => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
                 </select>
                 {["pickup", "delivery", "open", "veg", "halal", "catering"].map((f) => (
                     <button
                         key={f}
                         onClick={() => toggle(f)}
+                        aria-label={`Toggle ${f === "open" ? "open now" : f} filter`}
                         className={cn(
                             "shrink-0 rounded-full border px-4 py-2 text-sm font-600 capitalize transition",
                             params.get(f) === "1" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary"
@@ -196,18 +199,18 @@ export default function Restaurants() {
             {showFilters && (
                 <div className="mt-4 grid gap-4 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                        <label className="text-xs font-600 uppercase tracking-wide text-muted-foreground">Minimum rating</label>
-                        <div className="mt-2 flex gap-2">
+                        <label htmlFor="min-rating-group" className="text-xs font-600 uppercase tracking-wide text-muted-foreground">Minimum rating</label>
+                        <div id="min-rating-group" className="mt-2 flex gap-2">
                             {[0, 4, 4.5, 4.8].map((r) => (
-                                <button key={r} onClick={() => setParam("rating", r || "")} className={cn("rounded-full border px-3 py-1.5 text-sm font-600", filters.minRating === r ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+                                <button key={r} onClick={() => setParam("rating", r || "")} aria-label={`Minimum rating ${r === 0 ? "Any" : `${r} stars`}`} className={cn("rounded-full border px-3 py-1.5 text-sm font-600", filters.minRating === r ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
                                     {r === 0 ? "Any" : `${r}+`}
                                 </button>
                             ))}
                         </div>
                     </div>
                     <div>
-                        <label className="text-xs font-600 uppercase tracking-wide text-muted-foreground">Category</label>
-                        <select value={activeCatOption} onChange={(e) => setParam("cat", e.target.value)} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm outline-none">
+                        <label htmlFor="category-select-filter" className="text-xs font-600 uppercase tracking-wide text-muted-foreground">Category</label>
+                        <select id="category-select-filter" value={activeCatOption} onChange={(e) => setParam("cat", e.target.value)} aria-label="Filter by category" className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm outline-none">
                             <option value="">All cuisines</option>
                             {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>

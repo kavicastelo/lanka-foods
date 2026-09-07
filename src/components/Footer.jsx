@@ -17,12 +17,12 @@ export default function Footer() {
                         The home of authentic Sri Lankan food in Finland. Discover restaurants, home chefs and food stores near you.
                     </p>
                     <div className="mt-5 flex gap-3">
-                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="https://instagram.com" target="_blank" rel="noreferrer"><Instagram className="h-4 w-4" /></a>
-                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="https://facebook.com" target="_blank" rel="noreferrer"><Facebook className="h-4 w-4" /></a>
+                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="LankaEats Instagram"><Instagram className="h-4 w-4" /></a>
+                        <a className="grid h-9 w-9 place-items-center rounded-full bg-background text-muted-foreground transition hover:text-primary" href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="LankaEats Facebook"><Facebook className="h-4 w-4" /></a>
                     </div>
                 </div>
                 <div>
-                    <h4 className="text-sm font-700">Marketplace</h4>
+                    <h3 className="text-sm font-700">Marketplace</h3>
                     <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
                         <li><Link to="/restaurants" className="hover:text-primary">Browse restaurants</Link></li>
                         <li><Link to="/restaurants" className="hover:text-primary">Categories & Cuisines</Link></li>
@@ -31,14 +31,14 @@ export default function Footer() {
                     </ul>
                 </div>
                 <div>
-                    <h4 className="text-sm font-700">For Partners</h4>
+                    <h3 className="text-sm font-700">For Partners</h3>
                     <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
                         <li><Link to="/for-partners" className="hover:text-primary">Why partner with us</Link></li>
                         <li><Link to="/partner" className="hover:text-primary">Partner application form</Link></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 className="text-sm font-700">Company & Legal</h4>
+                    <h3 className="text-sm font-700">Company & Legal</h3>
                     <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
                         <li><Link to="/about" className="hover:text-primary">About us</Link></li>
                         <li><Link to="/contact" className="hover:text-primary">Contact us</Link></li>

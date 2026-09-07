@@ -108,7 +108,7 @@ export default function PwaInstallBanner() {
 
                     <div className="flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-1.5">
-                            <h4 className="font-display text-sm font-700 tracking-tight">Install LankaEats App</h4>
+                            <div className="font-display text-sm font-700 tracking-tight">Install LankaEats App</div>
                             <Sparkles className="h-3.5 w-3.5 text-primary" />
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
@@ -148,6 +148,7 @@ export default function PwaInstallBanner() {
                         onClick={handleDismiss}
                         className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition focus:outline-none"
                         title="Dismiss banner for 24 hours"
+                        aria-label="Dismiss banner for 24 hours"
                     >
                         <X className="h-4 w-4" />
                     </button>

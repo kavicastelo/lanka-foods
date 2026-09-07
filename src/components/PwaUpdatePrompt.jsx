@@ -74,7 +74,7 @@ export default function PwaUpdatePrompt() {
 
                     <div className="flex-1 min-w-0 pr-2">
                         <div className="flex items-center gap-1.5">
-                            <h4 className="font-display text-sm font-700 tracking-tight">App Update Available</h4>
+                            <div className="font-display text-sm font-700 tracking-tight">App Update Available</div>
                             <Sparkles className="h-3.5 w-3.5 text-primary" />
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
@@ -104,6 +104,7 @@ export default function PwaUpdatePrompt() {
                         onClick={handleDismiss}
                         className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition focus:outline-none"
                         title="Dismiss update alert"
+                        aria-label="Dismiss update alert"
                     >
                         <X className="h-4 w-4" />
                     </button>
