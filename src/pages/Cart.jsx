@@ -5,6 +5,7 @@ import { useMarketplace } from "@/context/MarketplaceContext";
 import { useRestaurantById, useCommissionConfig } from "@/hooks/useMarketplaceData";
 import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
+import SeoHead from "@/components/SeoHead";
 
 export default function Cart() {
     const { cart, cartSubtotal, updateQty, removeItem, clearCart } = useMarketplace();
@@ -18,6 +19,7 @@ export default function Cart() {
     if (cart.items.length === 0) {
         return (
             <div className="mx-auto max-w-2xl px-6 py-24 text-center">
+                <SeoHead title="Shopping Cart" description="View items in your shopping cart." noindex={true} />
                 <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-secondary">
                     <ShoppingBag className="h-9 w-9 text-muted-foreground" />
                 </div>
@@ -34,6 +36,7 @@ export default function Cart() {
 
     return (
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-10">
+            <SeoHead title="Shopping Cart" description="View items in your shopping cart." noindex={true} />
             <Link to={`/restaurant/${cartRestaurant.slug}`} className="mb-4 inline-flex items-center gap-1.5 text-sm font-600 text-primary hover:underline">
                 <ArrowLeft className="h-4 w-4" /> Continue shopping
             </Link>

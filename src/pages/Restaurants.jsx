@@ -5,6 +5,7 @@ import { useActiveRestaurants, useGlobalCategories } from "@/hooks/useMarketplac
 import { cities } from "@/lib/constants";
 import RestaurantCard from "@/components/RestaurantCard";
 import { cn } from "@/lib/utils";
+import SeoHead from "@/components/SeoHead";
 
 const sortOptions = [
     { id: "recommended", label: "Recommended" },
@@ -147,6 +148,29 @@ export default function Restaurants() {
 
     return (
         <div className="mx-auto max-w-7xl px-6 py-10">
+            <SeoHead
+                title="Sri Lankan Restaurants & Food Stores in Finland"
+                description="Browse top Sri Lankan restaurants and home kitchens in Finland. Order authentic kottu, string hoppers, Lamprais, and Sri Lankan curries."
+                canonicalUrl="/restaurants"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        {
+                            "@type": "ListItem",
+                            "position": 1,
+                            "name": "Home",
+                            "item": "https://lankaeats.fi/"
+                        },
+                        {
+                            "@type": "ListItem",
+                            "position": 2,
+                            "name": "Restaurants",
+                            "item": "https://lankaeats.fi/restaurants"
+                        }
+                    ]
+                }}
+            />
             <div className="mb-6">
                 <h1 className="font-display text-3xl font-600">Sri Lankan Food Near You</h1>
                 <p className="mt-1 text-muted-foreground">{filtered.length} restaurants found{city ? ` in ${city}` : " across Finland"}.</p>

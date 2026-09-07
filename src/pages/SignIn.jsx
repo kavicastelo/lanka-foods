@@ -4,6 +4,7 @@ import { UtensilsCrossed, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { authApi } from "@/api/authApi";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { Button } from "@/components/ui/button";
+import SeoHead from "@/components/SeoHead";
 
 export default function SignIn() {
     const [email, setEmail] = useState("");
@@ -28,6 +29,7 @@ export default function SignIn() {
 
     return (
         <div className="grid min-h-screen lg:grid-cols-2">
+            <SeoHead title="Sign In" description="Sign in to your LankaEats account." noindex={true} />
             <div className="relative hidden lg:block">
                 <img src="/images/hero.webp" alt="" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/40" />

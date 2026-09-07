@@ -5,6 +5,7 @@ import { useActiveRestaurants, useGlobalCategories } from "@/hooks/useMarketplac
 import { IMG, cities } from "@/lib/constants";
 import RestaurantCard from "@/components/RestaurantCard";
 import { Image } from "@/components/ui/image";
+import SeoHead from "@/components/SeoHead";
 
 const categoryIconMap = {
     "rice & curry": "🍚",
@@ -125,6 +126,32 @@ export default function Home() {
 
     return (
         <div>
+            <SeoHead
+                title="Authentic Sri Lankan Food Marketplace in Finland"
+                description="Discover top Sri Lankan restaurants, home chefs, and food partners in Finland. Order authentic Kottu, Rice & Curry, Hoppers, and Short Eats online."
+                canonicalUrl="/"
+                jsonLd={[
+                    {
+                        "@context": "https://schema.org",
+                        "@type": "Organization",
+                        "name": "LankaEats",
+                        "url": "https://lankaeats.fi",
+                        "logo": "https://lankaeats.fi/icons/icon-512.png",
+                        "description": "Authentic Sri Lankan Food Marketplace in Finland"
+                    },
+                    {
+                        "@context": "https://schema.org",
+                        "@type": "WebSite",
+                        "name": "LankaEats",
+                        "url": "https://lankaeats.fi",
+                        "potentialAction": {
+                            "@type": "SearchAction",
+                            "target": "https://lankaeats.fi/restaurants?q={search_term_string}",
+                            "query-input": "required name=search_term_string"
+                        }
+                    }
+                ]}
+            />
             {/* Hero */}
             <section className="relative overflow-hidden">
                 <div className="absolute inset-0">

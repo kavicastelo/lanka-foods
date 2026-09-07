@@ -8,6 +8,7 @@ import { Image } from "@/components/ui/image";
 import StarRating from "@/components/StarRating";
 import FoodItemModal from "@/components/FoodItemModal";
 import { cn } from "@/lib/utils";
+import SeoHead from "@/components/SeoHead";
 
 export default function RestaurantStorefront() {
     const { slug } = useParams();
@@ -30,6 +31,11 @@ export default function RestaurantStorefront() {
     if (!restaurant || ["suspended", "rejected"].includes(restaurant.status)) {
         return (
             <div className="mx-auto max-w-3xl px-6 py-32 text-center">
+                <SeoHead
+                    title={restaurant ? "Restaurant Unavailable" : "Restaurant Not Found"}
+                    description="The requested restaurant is unavailable or does not exist on LankaEats Finland."
+                    noindex={true}
+                />
                 <h1 className="font-display text-3xl font-600">{restaurant ? "Restaurant unavailable" : "Restaurant not found"}</h1>
                 <p className="mt-2 text-muted-foreground">{restaurant ? "This restaurant is currently not accepting orders." : "The restaurant you're looking for doesn't exist."}</p>
                 <Link to="/restaurants" className="mt-4 inline-block rounded-full bg-primary px-5 py-2 text-sm font-700 text-primary-foreground">Browse restaurants</Link>
@@ -39,6 +45,55 @@ export default function RestaurantStorefront() {
 
     const fav = favoriteRestaurants.includes(restaurant.id);
     const stats = computeRestaurantStats(reviews);
+
+    const restaurantSchema = {
+        "@context": "https://schema.org",
+        "@type": "Restaurant",
+        "name": restaurant.name,
+        "image": restaurant.cover || restaurant.logo,
+        "@id": `https://lankaeats.fi/restaurant/${slug}`,
+        "url": `https://lankaeats.fi/restaurant/${slug}`,
+        "telephone": restaurant.phone || undefined,
+        "priceRange": restaurant.priceRange || "$$",
+        "servesCuisine": Array.isArray(restaurant.cuisines) ? restaurant.cuisines.join(", ") : restaurant.cuisine || "Sri Lankan",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": restaurant.address || "Main Street",
+            "addressLocality": restaurant.city || "Helsinki",
+            "addressCountry": "FI"
+        },
+        "aggregateRating": stats.count > 0 ? {
+            "@type": "AggregateRating",
+            "ratingValue": stats.avg,
+            "reviewCount": stats.count
+        } : undefined
+    };
+
+    const breadcrumbSchema = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://lankaeats.fi/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Restaurants",
+                "item": "https://lankaeats.fi/restaurants"
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": restaurant.name,
+                "item": `https://lankaeats.fi/restaurant/${slug}`
+            }
+        ]
+    };
+
     const scrollToCat = (name) => {
         setActiveCat(name);
         document.getElementById(`cat-${name}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -52,8 +107,24 @@ export default function RestaurantStorefront() {
         setShowFeedbackModal(true);
     };
 
+    const pageDescription = restaurant.description || `Order online from ${restaurant.name} in ${restaurant.city || 'Finland'}. Authentic Sri Lankan dishes, fast delivery, and pickup available.`;
+
     return (
         <div>
+            <SeoHead
+                title={`${restaurant.name} — Authentic Sri Lankan Restaurant in ${restaurant.city || 'Finland'}`}
+                description={pageDescription}
+                canonicalUrl={`/restaurant/${slug}`}
+                og={{
+                    title: `${restaurant.name} | LankaEats`,
+                    description: pageDescription,
+                    image: restaurant.cover || restaurant.logo,
+                    url: `https://lankaeats.fi/restaurant/${slug}`,
+                    type: "restaurant"
+                }}
+                jsonLd={[restaurantSchema, breadcrumbSchema]}
+            />
+            {/* Cover */}
             {/* Cover */}
             <div className="relative h-56 sm:h-72 lg:h-80">
                 <Image src={restaurant.cover} alt={restaurant.name} fittingType="fill" className="h-full w-full" />

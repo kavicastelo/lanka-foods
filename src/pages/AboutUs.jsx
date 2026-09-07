@@ -1,10 +1,24 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { UtensilsCrossed, Heart, ShieldCheck, Users, Sparkles, MapPin, Star, ArrowRight } from "lucide-react";
+import SeoHead from "@/components/SeoHead";
 
 export default function AboutUs() {
     return (
         <div className="space-y-16 py-10">
+            <SeoHead
+                title="About Us — Connecting Flavors & Culture"
+                description="Learn about LankaEats, Finland's premier marketplace for authentic Sri Lankan food, home chefs, and culinary heritage."
+                canonicalUrl="/about"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://lankaeats.fi/" },
+                        { "@type": "ListItem", "position": 2, "name": "About Us", "item": "https://lankaeats.fi/about" }
+                    ]
+                }}
+            />
             {/* Hero Section */}
             <section className="relative overflow-hidden rounded-3xl bg-spice-gradient px-6 py-20 text-white shadow-warm sm:px-12 lg:px-16">
                 <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
