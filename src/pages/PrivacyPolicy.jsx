@@ -1,9 +1,23 @@
 import React from "react";
 import { Shield, Lock, Eye, Database, UserCheck } from "lucide-react";
+import SeoHead from "@/components/SeoHead";
 
 export default function PrivacyPolicy() {
     return (
         <div className="mx-auto max-w-4xl px-6 py-12 space-y-10">
+            <SeoHead
+                title="Privacy Policy — GDPR Compliance"
+                description="Privacy policy and GDPR data compliance information for users of LankaEats Finland marketplace."
+                canonicalUrl="/privacy"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://lankaeats.fi/" },
+                        { "@type": "ListItem", "position": 2, "name": "Privacy Policy", "item": "https://lankaeats.fi/privacy" }
+                    ]
+                }}
+            />
             {/* Header */}
             <div className="border-b border-border pb-8 space-y-3">
                 <div className="inline-flex items-center gap-2 text-xs font-700 uppercase tracking-widest text-primary">

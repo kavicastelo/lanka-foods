@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Mail, Phone, MapPin, Send, CheckCircle2, MessageSquare, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { contactApi } from "@/api/contactApi";
+import SeoHead from "@/components/SeoHead";
 
 export default function ContactUs() {
     const [submitted, setSubmitted] = useState(false);
@@ -35,6 +36,19 @@ export default function ContactUs() {
 
     return (
         <div className="space-y-16 py-10">
+            <SeoHead
+                title="Contact Us — Support & Merchant Inquiries"
+                description="Get in touch with the LankaEats Finland team for customer support, order assistance, or restaurant partner inquiries in Helsinki."
+                canonicalUrl="/contact"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://lankaeats.fi/" },
+                        { "@type": "ListItem", "position": 2, "name": "Contact Us", "item": "https://lankaeats.fi/contact" }
+                    ]
+                }}
+            />
             {/* Hero Section */}
             <section className="relative overflow-hidden rounded-3xl bg-spice-gradient px-6 py-16 text-white shadow-warm sm:px-12">
                 <div className="relative mx-auto max-w-3xl text-center space-y-3">

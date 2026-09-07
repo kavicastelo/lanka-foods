@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Store, TrendingUp, ShieldCheck, Clock, CheckCircle2, ArrowRight, HelpCircle, FileText } from "lucide-react";
+import SeoHead from "@/components/SeoHead";
 
 export default function ForPartners() {
     const faqs = [
@@ -24,6 +25,19 @@ export default function ForPartners() {
 
     return (
         <div className="space-y-16 py-10">
+            <SeoHead
+                title="For Restaurant Partners — Features & FAQ"
+                description="Discover how LankaEats helps Sri Lankan restaurants, home chefs, and food stores grow sales with delivery management, menu building, and automated invoicing."
+                canonicalUrl="/for-partners"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://lankaeats.fi/" },
+                        { "@type": "ListItem", "position": 2, "name": "For Partners", "item": "https://lankaeats.fi/for-partners" }
+                    ]
+                }}
+            />
             {/* Hero Section */}
             <section className="relative overflow-hidden rounded-3xl bg-spice-gradient px-6 py-20 text-white shadow-warm sm:px-12 lg:px-16">
                 <div className="absolute -right-10 -top-10 h-64 w-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />

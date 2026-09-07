@@ -6,6 +6,7 @@ import { applicationsApi } from "@/api/applicationsApi";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import SeoHead from "@/components/SeoHead";
 
 export default function Register() {
     const [tab, setTab] = useState("customer");
@@ -135,6 +136,7 @@ export default function Register() {
     // --- Form step ---
     return (
         <div className="grid min-h-screen place-items-center bg-secondary/30 px-6 py-12">
+            <SeoHead title="Create Account" description="Register a new account on LankaEats Finland." noindex={true} />
             <div className="w-full max-w-lg">
                 <Link to="/" className="mb-6 flex items-center gap-2">
                     <div className="grid h-9 w-9 place-items-center rounded-xl bg-spice-gradient text-white"><UtensilsCrossed className="h-5 w-5" /></div>

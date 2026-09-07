@@ -1,9 +1,23 @@
 import React from "react";
 import { FileText, ShieldAlert, Scale, Clock, CheckCircle } from "lucide-react";
+import SeoHead from "@/components/SeoHead";
 
 export default function TermsAndConditions() {
     return (
         <div className="mx-auto max-w-4xl px-6 py-12 space-y-10">
+            <SeoHead
+                title="Terms & Conditions"
+                description="Terms and Conditions of service for LankaEats food marketplace in Finland, covering user accounts, orders, delivery, and payments."
+                canonicalUrl="/terms"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://lankaeats.fi/" },
+                        { "@type": "ListItem", "position": 2, "name": "Terms and Conditions", "item": "https://lankaeats.fi/terms" }
+                    ]
+                }}
+            />
             {/* Header */}
             <div className="border-b border-border pb-8 space-y-3">
                 <div className="inline-flex items-center gap-2 text-xs font-700 uppercase tracking-widest text-primary">

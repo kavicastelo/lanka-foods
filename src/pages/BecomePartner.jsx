@@ -4,6 +4,7 @@ import { CheckCircle2, ArrowRight, Store } from "lucide-react";
 import { useSubmitApplication } from "@/hooks/useMarketplaceData";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { cities, businessTypes } from "@/lib/constants";
+import SeoHead from "@/components/SeoHead";
 
 export default function BecomePartner() {
     const { user } = useMarketplaceUser();
@@ -54,6 +55,19 @@ export default function BecomePartner() {
 
     return (
         <div>
+            <SeoHead
+                title="Become a Partner — List Your Restaurant or Food Business"
+                description="Partner with LankaEats Finland to reach thousands of Sri Lankan food lovers. Register your restaurant or catering business today."
+                canonicalUrl="/partner"
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://lankaeats.fi/" },
+                        { "@type": "ListItem", "position": 2, "name": "Become a Partner", "item": "https://lankaeats.fi/partner" }
+                    ]
+                }}
+            />
             <section className="relative overflow-hidden bg-spice-gradient px-6 py-16 text-white">
                 <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10" />
                 <div className="relative mx-auto max-w-3xl">
