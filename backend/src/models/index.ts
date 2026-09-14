@@ -10,3 +10,5 @@ export * from './favorite.model.js';
 export * from './restaurant-application.model.js';
 export * from './commission-config.model.js';
 export * from './financial-record.model.js';
+export * from './notification.model.js';
+export * from './push-subscription.model.js';

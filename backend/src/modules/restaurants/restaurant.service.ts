@@ -8,6 +8,7 @@ import {
   type OwnerRestaurantDto,
   type PublicRestaurantDto,
 } from './restaurant.mapper.js';
+import { getScheduleSummary } from './restaurant.schedule.js';
 import type { RestaurantQueryInput, UpdateRestaurantSettingsInput } from './restaurant.schemas.js';
 
 export interface PaginatedResult<T> {
@@ -160,6 +161,13 @@ export class RestaurantService {
     if (input.priceRange !== undefined) restaurant.priceRange = input.priceRange;
     if (input.coverImageUrl !== undefined) restaurant.coverImageUrl = input.coverImageUrl;
     if (input.logoText !== undefined) restaurant.logoText = input.logoText;
+    if (input.scheduleType !== undefined) restaurant.scheduleType = input.scheduleType;
+    if (input.weeklySchedule !== undefined) restaurant.weeklySchedule = input.weeklySchedule as any;
+    if (input.customDates !== undefined) restaurant.customDates = input.customDates as any;
+
+    if (!input.hours && (input.scheduleType || input.weeklySchedule)) {
+      restaurant.hours = getScheduleSummary(restaurant);
+    }
 
     await restaurant.save();
 

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { ClipboardList, ListOrdered, UtensilsCrossed, Settings, DollarSign, Star, Plus, Trash2, Check, Clock, AlertCircle, TrendingUp, CheckCircle2, Upload, X } from "lucide-react";
+import { ClipboardList, ListOrdered, UtensilsCrossed, Settings, DollarSign, Star, Plus, Trash2, Check, Clock, AlertCircle, TrendingUp, CheckCircle2, Upload, X, Pencil, Phone, MessageSquare, Calendar } from "lucide-react";
+import { DAYS_LIST, SCHEDULE_TYPE_OPTIONS, DEFAULT_WEEKLY_SCHEDULE, getScheduleSummary, isRestaurantOpenNow } from "@/utils/schedule";
 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,8 @@ import { mediaApi } from "@/api/mediaApi";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatusBadge from "@/components/StatusBadge";
 import StarRating from "@/components/StarRating";
+import OrderChatBox from "@/components/OrderChatBox";
+import { WhatsAppIcon, getWhatsAppUrl } from "@/utils/communication";
 import { Image } from "@/components/ui/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -84,6 +87,45 @@ function OpenOrders({ restaurant }) {
     const updateStatus = useUpdateOrderStatus();
     const openOrders = orders.filter((o) => ["received", "accepted", "preparing", "ready", "out_for_delivery"].includes(o.status));
 
+    // Order Rejection State
+    const [rejectingOrder, setRejectingOrder] = useState(null);
+    const [rejectReason, setRejectReason] = useState("Kitchen at maximum capacity");
+    const [customReason, setCustomReason] = useState("");
+
+    // Active Chat State
+    const [activeChatOrderId, setActiveChatOrderId] = useState(null);
+
+    const presetReasons = [
+        "Kitchen at maximum capacity",
+        "Dishes/ingredients out of stock",
+        "Restaurant closing early today",
+        "Delivery address outside service area",
+        "Other reason",
+    ];
+
+    const confirmRejection = () => {
+        if (!rejectingOrder) return;
+        const finalReason = rejectReason === "Other reason" ? customReason.trim() : (customReason.trim() || rejectReason);
+        if (!finalReason) {
+            alert("Please specify a rejection reason.");
+            return;
+        }
+
+        updateStatus.mutate(
+            {
+                orderId: rejectingOrder.id,
+                newStatus: "rejected",
+                rejectionReason: finalReason,
+            },
+            {
+                onSuccess: () => {
+                    setRejectingOrder(null);
+                    setCustomReason("");
+                },
+            }
+        );
+    };
+
     if (openOrders.length === 0) {
         return (
             <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card py-20 text-center">
@@ -93,53 +135,201 @@ function OpenOrders({ restaurant }) {
             </div>
         );
     }
+
     return (
-        <div className="grid gap-4 lg:grid-cols-2">
-            {openOrders.map((o) => (
-                <div key={o.id} className="rounded-2xl border border-border bg-card p-5">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="font-700">{o.order_number}</div>
-                            <div className="text-xs text-muted-foreground">{o.customer_name} · {o.scheduled_date} {o.scheduled_time}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-600 capitalize">{o.delivery_type}</span>
-                            <StatusBadge status={o.status} />
-                        </div>
-                    </div>
-                    <div className="mt-3 space-y-1 rounded-xl bg-secondary/40 p-3 text-sm">
-                        {o.items.map((i, idx) => (
-                            <div key={idx} className="flex justify-between">
-                                <span>{i.qty}× {i.name}</span>
-                                <span className="text-muted-foreground">€{(i.price * i.qty).toFixed(2)}</span>
+        <div className="space-y-4">
+            {/* ORDER REJECTION MODAL */}
+            {rejectingOrder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in-50">
+                    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-border pb-3">
+                            <div className="flex items-center gap-2 text-destructive">
+                                <AlertCircle className="h-5 w-5" />
+                                <h3 className="font-700 text-base">Reject Order #{rejectingOrder.order_number}</h3>
                             </div>
-                        ))}
-                        {o.instructions && <div className="mt-1 border-t border-border pt-1 text-xs text-muted-foreground">Note: {o.instructions}</div>}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                        <span className="font-700">€{(o.total || 0).toFixed(2)}</span>
-                        <div className="flex gap-2">
-                            {o.status === "received" && (
-                                <>
-                                    <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "accepted" })} className="rounded-lg">Accept</Button>
-                                    <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "rejected" })} className="rounded-lg text-destructive">Reject</Button>
-                                </>
-                            )}
-                            {o.status === "accepted" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "preparing" })} className="rounded-lg">Start preparing</Button>}
-                            {o.status === "preparing" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "ready" })} className="rounded-lg">Mark ready</Button>}
-                            {o.status === "ready" && o.delivery_type === "delivery" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "out_for_delivery" })} className="rounded-lg">Out for delivery</Button>}
-                            {o.status === "ready" && o.delivery_type === "pickup" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "completed" })} className="rounded-lg">Complete</Button>}
-                            {o.status === "out_for_delivery" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "completed" })} className="rounded-lg">Complete</Button>}
+                            <button
+                                type="button"
+                                onClick={() => setRejectingOrder(null)}
+                                className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                            Please select or describe the reason why this order cannot be fulfilled. The customer will receive this message and can contact you to resolve.
+                        </p>
+
+                        {/* Preset Chips */}
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                            {presetReasons.map((r) => (
+                                <button
+                                    key={r}
+                                    type="button"
+                                    onClick={() => setRejectReason(r)}
+                                    className={cn(
+                                        "rounded-lg px-2.5 py-1 text-xs font-600 transition",
+                                        rejectReason === r
+                                            ? "bg-destructive text-destructive-foreground shadow-xs"
+                                            : "bg-secondary text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {r}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Custom Reason Text */}
+                        <div className="mt-3">
+                            <label className="text-xs font-600 text-muted-foreground">
+                                Explanation message for customer *
+                            </label>
+                            <textarea
+                                rows={3}
+                                value={rejectReason === "Other reason" ? customReason : (customReason || rejectReason)}
+                                onChange={(e) => setCustomReason(e.target.value)}
+                                placeholder="State specific reason or notes for the customer..."
+                                className="mt-1 w-full rounded-xl border border-border bg-secondary/30 p-2.5 text-xs outline-none focus:border-destructive"
+                            />
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-end gap-2 border-t border-border pt-3">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setRejectingOrder(null)}
+                                className="rounded-xl"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={updateStatus.isPending || !(customReason || rejectReason)}
+                                onClick={confirmRejection}
+                                className="rounded-xl"
+                            >
+                                {updateStatus.isPending ? "Rejecting..." : "Send Rejection & Notify"}
+                            </Button>
                         </div>
                     </div>
                 </div>
-            ))}
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+                {openOrders.map((o) => {
+                    const waUrl = getWhatsAppUrl(
+                        o.customerPhone,
+                        `Hi ${o.customer_name}, this is ${restaurant.name} regarding your order #${o.order_number}.`
+                    );
+
+                    return (
+                        <div key={o.id} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-700">{o.order_number}</div>
+                                    <div className="text-xs text-muted-foreground">{o.customer_name} · {o.scheduled_date} {o.scheduled_time}</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-600 capitalize">{o.delivery_type}</span>
+                                    <StatusBadge status={o.status} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1 rounded-xl bg-secondary/40 p-3 text-sm">
+                                {o.items.map((i, idx) => (
+                                    <div key={idx} className="flex justify-between">
+                                        <span>{i.qty}× {i.name}</span>
+                                        <span className="text-muted-foreground">€{(i.price * i.qty).toFixed(2)}</span>
+                                    </div>
+                                ))}
+                                {o.instructions && <div className="mt-1 border-t border-border pt-1 text-xs text-muted-foreground">Note: {o.instructions}</div>}
+                            </div>
+
+                            {/* Communication & Actions Bar */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2">
+                                <div className="flex items-center gap-1.5">
+                                    {waUrl && (
+                                        <a
+                                            href={waUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/10 px-2.5 py-1 text-xs font-600 text-emerald-700 hover:bg-emerald-600/20 transition"
+                                            title="Chat with customer on WhatsApp"
+                                        >
+                                            <WhatsAppIcon className="h-3.5 w-3.5" />
+                                            WhatsApp
+                                        </a>
+                                    )}
+                                    {o.customerPhone && (
+                                        <a
+                                            href={`tel:${o.customerPhone}`}
+                                            className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-xs font-600 text-muted-foreground hover:text-foreground transition"
+                                            title={`Call customer (${o.customerPhone})`}
+                                        >
+                                            <Phone className="h-3.5 w-3.5 text-primary" />
+                                            Call
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveChatOrderId(activeChatOrderId === o.id ? null : o.id)}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-600 text-primary hover:bg-primary/20 transition"
+                                    >
+                                        <MessageSquare className="h-3.5 w-3.5" />
+                                        Chat ({o.messages?.length || 0})
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <span className="font-700 text-sm">€{(o.total || 0).toFixed(2)}</span>
+                                    <div className="flex gap-1.5">
+                                        {o.status === "received" && (
+                                            <>
+                                                <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "accepted" })} className="rounded-lg">Accept</Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setRejectingOrder(o);
+                                                        setRejectReason("Kitchen at maximum capacity");
+                                                        setCustomReason("");
+                                                    }}
+                                                    className="rounded-lg text-destructive"
+                                                >
+                                                    Reject
+                                                </Button>
+                                            </>
+                                        )}
+                                        {o.status === "accepted" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "preparing" })} className="rounded-lg">Start preparing</Button>}
+                                        {o.status === "preparing" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "ready" })} className="rounded-lg">Mark ready</Button>}
+                                        {o.status === "ready" && o.delivery_type === "delivery" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "out_for_delivery" })} className="rounded-lg">Out for delivery</Button>}
+                                        {o.status === "ready" && o.delivery_type === "pickup" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "completed" })} className="rounded-lg">Complete</Button>}
+                                        {o.status === "out_for_delivery" && <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "completed" })} className="rounded-lg">Complete</Button>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* In-app Order Chat Window */}
+                            {activeChatOrderId === o.id && (
+                                <div className="pt-2 animate-in fade-in-50">
+                                    <OrderChatBox order={o} currentRole="restaurant" title={`Chat with ${o.customer_name}`} />
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }
 
 function AllOrders({ restaurant }) {
     const { data: orders = [] } = useRestaurantOrders(restaurant.id);
+    const [activeChatOrderId, setActiveChatOrderId] = useState(null);
+
     return (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="overflow-x-auto">
@@ -153,20 +343,80 @@ function AllOrders({ restaurant }) {
                             <th className="px-4 py-3 font-600">Date</th>
                             <th className="px-4 py-3 font-600">Amount</th>
                             <th className="px-4 py-3 font-600">Status</th>
+                            <th className="px-4 py-3 font-600">Communication</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.map((o) => (
-                            <tr key={o.id} className="border-t border-border">
-                                <td className="px-4 py-3 font-600">{o.order_number}</td>
-                                <td className="px-4 py-3">{o.customer_name}</td>
-                                <td className="px-4 py-3 text-muted-foreground">{o.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</td>
-                                <td className="px-4 py-3 capitalize">{o.delivery_type}</td>
-                                <td className="px-4 py-3 text-muted-foreground">{o.scheduled_date} {o.scheduled_time}</td>
-                                <td className="px-4 py-3 font-700">€{(o.total || 0).toFixed(2)}</td>
-                                <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
-                            </tr>
-                        ))}
+                        {orders.map((o) => {
+                            const waUrl = getWhatsAppUrl(
+                                o.customerPhone,
+                                `Hi ${o.customer_name}, this is ${restaurant.name} regarding your order #${o.order_number}.`
+                            );
+
+                            return (
+                                <React.Fragment key={o.id}>
+                                    <tr className="border-t border-border hover:bg-secondary/15 transition">
+                                        <td className="px-4 py-3 font-600">{o.order_number}</td>
+                                        <td className="px-4 py-3">
+                                            <div>{o.customer_name}</div>
+                                            {o.customerPhone && <div className="text-xs text-muted-foreground">{o.customerPhone}</div>}
+                                        </td>
+                                        <td className="px-4 py-3 text-muted-foreground">{o.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</td>
+                                        <td className="px-4 py-3 capitalize">{o.delivery_type}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{o.scheduled_date} {o.scheduled_time}</td>
+                                        <td className="px-4 py-3 font-700">€{(o.total || 0).toFixed(2)}</td>
+                                        <td className="px-4 py-3">
+                                            <StatusBadge status={o.status} />
+                                            {o.status === "rejected" && o.rejectionReason && (
+                                                <div className="text-[11px] text-destructive mt-1 max-w-[180px] leading-tight font-500" title={o.rejectionReason}>
+                                                    Reason: "{o.rejectionReason}"
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1.5">
+                                                {waUrl && (
+                                                    <a
+                                                        href={waUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50 transition"
+                                                        title="WhatsApp customer"
+                                                    >
+                                                        <WhatsAppIcon className="h-4 w-4" />
+                                                    </a>
+                                                )}
+                                                {o.customerPhone && (
+                                                    <a
+                                                        href={`tel:${o.customerPhone}`}
+                                                        className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground transition"
+                                                        title={`Call ${o.customerPhone}`}
+                                                    >
+                                                        <Phone className="h-3.5 w-3.5 text-primary" />
+                                                    </a>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveChatOrderId(activeChatOrderId === o.id ? null : o.id)}
+                                                    className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-xs font-600 text-foreground hover:bg-primary/10 transition"
+                                                    title="View or send message"
+                                                >
+                                                    <MessageSquare className="h-3.5 w-3.5" />
+                                                    {o.messages?.length || 0}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {activeChatOrderId === o.id && (
+                                        <tr className="border-t border-border bg-secondary/10">
+                                            <td colSpan={8} className="p-4">
+                                                <OrderChatBox order={o} currentRole="restaurant" title={`Chat with ${o.customer_name} (#${o.order_number})`} />
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -193,6 +443,25 @@ function Menu({ restaurant }) {
         isPopular: false,
         available: true,
     });
+
+    // Category Editing State
+    const [editingCatId, setEditingCatId] = useState(null);
+    const [editingCatName, setEditingCatName] = useState("");
+
+    // Menu Item Editing State
+    const [editingItem, setEditingItem] = useState(null);
+    const [editForm, setEditForm] = useState({
+        name: "",
+        price: "",
+        category: "",
+        desc: "",
+        imageUrl: "",
+        isVegetarian: false,
+        isPopular: false,
+        available: true,
+    });
+    const [editUploading, setEditUploading] = useState(false);
+    const [editUploadError, setEditUploadError] = useState("");
 
     React.useEffect(() => {
         if (!form.category && categories.length > 0) {
@@ -248,6 +517,54 @@ function Menu({ restaurant }) {
         }
     };
 
+    const handleEditFileUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            setEditUploadError("Please select a JPEG, PNG, or WebP image.");
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setEditUploadError("File size exceeds 5MB limit.");
+            return;
+        }
+
+        try {
+            setEditUploading(true);
+            setEditUploadError("");
+
+            const base64Data = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (err) => reject(err);
+                reader.readAsDataURL(file);
+            });
+
+            const res = /** @type {any} */ (await mediaApi.uploadMediaServerProxy({
+                category: "menu_item",
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                restaurantId: restaurant.id,
+                base64Data,
+            }));
+
+            const publicUrl = res.publicUrl || res.data?.publicUrl;
+            if (!publicUrl) {
+                throw new Error("Failed to obtain uploaded image URL.");
+            }
+
+            setEditForm((prev) => ({ ...prev, imageUrl: publicUrl }));
+        } catch (err) {
+            console.error("Failed to upload image to R2 storage:", err);
+            setEditUploadError(err.message || "Failed to upload image to R2 storage.");
+        } finally {
+            setEditUploading(false);
+        }
+    };
+
     const submit = (e) => {
         e.preventDefault();
         const targetCategory = form.category || categories[0]?.id;
@@ -283,24 +600,95 @@ function Menu({ restaurant }) {
         setAdding(false);
     };
 
+    const submitEdit = (e) => {
+        e.preventDefault();
+        if (!editingItem) return;
+        if (!editForm.name || !editForm.price) return;
+
+        manageItem.mutate({
+            action: "update",
+            restaurantId: restaurant.id,
+            itemId: editingItem.id,
+            categoryId: editForm.category,
+            name: editForm.name,
+            price: +editForm.price,
+            description: editForm.desc,
+            imageUrl: editForm.imageUrl.trim() || DEFAULT_MENU_IMAGE,
+            isAvailable: editForm.available,
+            isVegetarian: editForm.isVegetarian,
+            isPopular: editForm.isPopular,
+        });
+
+        setEditingItem(null);
+    };
+
     const addCategory = () => {
         if (!newCat) return;
         manageCategory.mutate({ action: "create", restaurantId: restaurant.id, name: newCat });
         setNewCat("");
     };
 
+    const saveCategoryEdit = (catId) => {
+        const trimmed = editingCatName.trim();
+        if (!trimmed) return;
+        manageCategory.mutate({
+            action: "update",
+            restaurantId: restaurant.id,
+            categoryId: catId,
+            name: trimmed,
+        });
+        setEditingCatId(null);
+    };
+
+    const startEditItem = (item, catId) => {
+        setEditingItem(item);
+        setEditForm({
+            name: item.name || "",
+            price: item.price !== undefined ? item.price : "",
+            category: item.categoryId || catId || categories[0]?.id || "",
+            desc: item.desc || item.description || "",
+            imageUrl: item.image || item.imageUrl || "",
+            isVegetarian: item.veg ?? item.isVegetarian ?? false,
+            isPopular: item.popular ?? item.isPopular ?? false,
+            available: item.available ?? item.isAvailable ?? true,
+        });
+        setAdding(false);
+    };
+
     return (
         <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={() => setAdding((a) => !a)} className="rounded-xl"><Plus className="h-4 w-4" /> Add food item</Button>
-                <div className="flex items-center gap-2">
-                    <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="New category" className="rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
-                    <Button variant="outline" onClick={addCategory} className="rounded-xl">Add category</Button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button onClick={() => { setAdding((a) => !a); setEditingItem(null); }} className="rounded-xl">
+                        <Plus className="h-4 w-4" /> Add food item
+                    </Button>
+                    <div className="flex items-center gap-2">
+                        <input
+                            value={newCat}
+                            onChange={(e) => setNewCat(e.target.value)}
+                            placeholder="New category"
+                            className="rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    addCategory();
+                                }
+                            }}
+                        />
+                        <Button variant="outline" onClick={addCategory} className="rounded-xl">Add category</Button>
+                    </div>
                 </div>
             </div>
 
+            {/* ADD ITEM FORM */}
             {adding && (
-                <form onSubmit={submit} className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2">
+                <form onSubmit={submit} className="grid gap-3 rounded-2xl border-2 border-primary/20 bg-card p-5 shadow-sm sm:grid-cols-2">
+                    <div className="sm:col-span-2 flex items-center justify-between border-b border-border pb-2">
+                        <h3 className="font-700 text-sm">Add New Food Item</h3>
+                        <button type="button" onClick={() => setAdding(false)} className="rounded-lg p-1 text-muted-foreground hover:text-foreground">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
                     <div>
                         <label className="text-xs font-600 text-muted-foreground">Item Name *</label>
                         <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Devilled Crab" className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
@@ -368,15 +756,140 @@ function Menu({ restaurant }) {
                 </form>
             )}
 
+            {/* EDIT ITEM FORM */}
+            {editingItem && (
+                <form onSubmit={submitEdit} className="grid gap-3 rounded-2xl border-2 border-primary/40 bg-card p-5 shadow-md sm:grid-cols-2 animate-in fade-in-50">
+                    <div className="sm:col-span-2 flex items-center justify-between border-b border-border pb-2">
+                        <div className="flex items-center gap-2">
+                            <span className="rounded-lg bg-primary/10 p-1 text-primary"><Pencil className="h-4 w-4" /></span>
+                            <h3 className="font-700 text-sm">Edit Dish: <span className="text-primary">{editingItem.name}</span></h3>
+                        </div>
+                        <button type="button" onClick={() => setEditingItem(null)} className="rounded-lg p-1 text-muted-foreground hover:text-foreground">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                    <div>
+                        <label className="text-xs font-600 text-muted-foreground">Item Name *</label>
+                        <input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="e.g. Devilled Crab" className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-600 text-muted-foreground">Price (€) *</label>
+                        <input required type="number" step="0.01" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="e.g. 14.50" className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="sm:col-span-2">
+                        <label className="text-xs font-600 text-muted-foreground">Category *</label>
+                        <select value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary">
+                            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                        <label className="text-xs font-600 text-muted-foreground">Dish Image (Upload to Cloudflare R2 or Update URL)</label>
+                        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <label className={cn(
+                                "flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-secondary/30 px-4 py-2 text-sm font-600 text-muted-foreground transition hover:border-primary hover:text-foreground",
+                                editUploading && "opacity-50 pointer-events-none"
+                            )}>
+                                <Upload className="h-4 w-4" />
+                                {editUploading ? "Uploading..." : "Upload New Image"}
+                                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleEditFileUpload} className="hidden" />
+                            </label>
+                            <span className="text-xs text-muted-foreground text-center sm:text-left">or</span>
+                            <input
+                                value={editForm.imageUrl}
+                                onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
+                                placeholder="Paste image URL (https://...)"
+                                className="flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+                            />
+                        </div>
+                        {editUploadError && <p className="mt-1 text-xs text-destructive">{editUploadError}</p>}
+                        {editForm.imageUrl && (
+                            <div className="mt-2 flex items-center gap-3 rounded-xl border border-border bg-secondary/20 p-2">
+                                <Image src={editForm.imageUrl} alt="Preview" fittingType="fill" className="h-12 w-12 rounded-lg" />
+                                <span className="flex-1 truncate text-xs text-muted-foreground">{editForm.imageUrl}</span>
+                                <button type="button" onClick={() => setEditForm({ ...editForm, imageUrl: "" })} className="rounded-lg p-1 text-muted-foreground hover:text-destructive">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="sm:col-span-2">
+                        <label className="text-xs font-600 text-muted-foreground">Description</label>
+                        <input value={editForm.desc} onChange={(e) => setEditForm({ ...editForm, desc: e.target.value })} placeholder="Short description of ingredients or preparation" className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-6 sm:col-span-2">
+                        <label className="flex items-center gap-2 text-sm font-600 cursor-pointer">
+                            <input type="checkbox" checked={editForm.available} onChange={(e) => setEditForm({ ...editForm, available: e.target.checked })} className="h-4 w-4 accent-[hsl(var(--primary))]" /> Available
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-600 cursor-pointer">
+                            <input type="checkbox" checked={editForm.isVegetarian} onChange={(e) => setEditForm({ ...editForm, isVegetarian: e.target.checked })} className="h-4 w-4 accent-[hsl(var(--primary))]" /> Vegetarian
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-600 cursor-pointer">
+                            <input type="checkbox" checked={editForm.isPopular} onChange={(e) => setEditForm({ ...editForm, isPopular: e.target.checked })} className="h-4 w-4 accent-[hsl(var(--primary))]" /> Popular Dish
+                        </label>
+                    </div>
+                    <div className="flex items-center gap-3 sm:col-span-2 pt-1">
+                        <Button type="submit" className="rounded-xl" disabled={editUploading}>Save Changes</Button>
+                        <Button type="button" variant="ghost" onClick={() => setEditingItem(null)} className="rounded-xl">Cancel</Button>
+                    </div>
+                </form>
+            )}
+
             {categories.map((c) => (
                 <div key={c.id} className="rounded-2xl border border-border bg-card p-5">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-700">{c.name} <span className="text-sm font-400 text-muted-foreground">({c.items.length})</span></h3>
-                        <button onClick={() => manageCategory.mutate({ action: "delete", restaurantId: restaurant.id, categoryId: c.id })} className="text-xs font-600 text-destructive hover:underline">Delete category</button>
+                        {editingCatId === c.id ? (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    value={editingCatName}
+                                    onChange={(e) => setEditingCatName(e.target.value)}
+                                    className="rounded-lg border border-primary bg-card px-3 py-1 text-sm font-700 outline-none focus:ring-1 focus:ring-primary"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") saveCategoryEdit(c.id);
+                                        if (e.key === "Escape") setEditingCatId(null);
+                                    }}
+                                />
+                                <Button size="sm" onClick={() => saveCategoryEdit(c.id)} className="h-8 rounded-lg px-2.5">
+                                    <Check className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingCatId(null)} className="h-8 rounded-lg px-2.5">
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-700">{c.name} <span className="text-sm font-400 text-muted-foreground">({c.items.length})</span></h3>
+                                <button
+                                    onClick={() => {
+                                        setEditingCatId(c.id);
+                                        setEditingCatName(c.name);
+                                    }}
+                                    className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                                    title="Edit category name"
+                                >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => {
+                                if (confirm(`Are you sure you want to delete category "${c.name}"?`)) {
+                                    manageCategory.mutate({ action: "delete", restaurantId: restaurant.id, categoryId: c.id });
+                                }
+                            }}
+                            className="text-xs font-600 text-destructive hover:underline"
+                        >
+                            Delete category
+                        </button>
                     </div>
+
                     <div className="mt-3 space-y-2">
                         {c.items.map((i) => (
-                            <div key={i.id} className="flex flex-col gap-3 rounded-xl bg-secondary/40 p-3 sm:flex-row sm:items-center">
+                            <div key={i.id} className={cn(
+                                "flex flex-col gap-3 rounded-xl bg-secondary/40 p-3 sm:flex-row sm:items-center transition",
+                                editingItem?.id === i.id && "ring-2 ring-primary bg-primary/5"
+                            )}>
                                 <div className="flex flex-1 items-center gap-3 min-w-0">
                                     <Image src={i.image} alt={i.name} fittingType="fill" className="h-12 w-12 shrink-0 rounded-lg" />
                                     <div className="flex-1 min-w-0">
@@ -408,7 +921,18 @@ function Menu({ restaurant }) {
                                             {i.available ? "Available" : "Disabled"}
                                         </button>
                                         <button
-                                            onClick={() => manageItem.mutate({ action: "delete", restaurantId: restaurant.id, itemId: i.id })}
+                                            onClick={() => startEditItem(i, c.id)}
+                                            className="rounded-lg p-2 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                                            title="Edit dish details"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Are you sure you want to delete dish "${i.name}"?`)) {
+                                                    manageItem.mutate({ action: "delete", restaurantId: restaurant.id, itemId: i.id });
+                                                }
+                                            }}
                                             className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
                                             title="Delete item"
                                         >
@@ -437,6 +961,9 @@ function SettingsTab({ restaurant }) {
         city: restaurant.city || "",
         description: restaurant.description || "",
         hours: restaurant.hours || "",
+        scheduleType: restaurant.scheduleType || "custom_hours",
+        weeklySchedule: restaurant.weeklySchedule || { ...DEFAULT_WEEKLY_SCHEDULE },
+        customDates: Array.isArray(restaurant.customDates) ? restaurant.customDates : [],
         prepTime: restaurant.prepTime || "",
         priceRange: restaurant.priceRange || "€€",
         deliveryFee: restaurant.deliveryFee ?? 0,
@@ -454,6 +981,89 @@ function SettingsTab({ restaurant }) {
     const [uploadError, setUploadError] = useState("");
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    const [newException, setNewException] = useState({
+        date: "",
+        isOpen: false,
+        openTime: "11:00",
+        closeTime: "22:00",
+        note: "",
+    });
+
+    const updateDaySchedule = (dayKey, field, val) => {
+        setS((prev) => ({
+            ...prev,
+            weeklySchedule: {
+                ...prev.weeklySchedule,
+                [dayKey]: {
+                    ...(prev.weeklySchedule?.[dayKey] || { isOpen: true, openTime: "11:00", closeTime: "22:00" }),
+                    [field]: val,
+                },
+            },
+        }));
+    };
+
+    const copyMondayToWeekdays = () => {
+        const mon = s.weeklySchedule?.monday || { isOpen: true, openTime: "11:00", closeTime: "22:00" };
+        setS((prev) => ({
+            ...prev,
+            weeklySchedule: {
+                ...prev.weeklySchedule,
+                tuesday: { ...mon },
+                wednesday: { ...mon },
+                thursday: { ...mon },
+                friday: { ...mon },
+            },
+        }));
+    };
+
+    const copyMondayToAllDays = () => {
+        const mon = s.weeklySchedule?.monday || { isOpen: true, openTime: "11:00", closeTime: "22:00" };
+        setS((prev) => ({
+            ...prev,
+            weeklySchedule: {
+                monday: { ...mon },
+                tuesday: { ...mon },
+                wednesday: { ...mon },
+                thursday: { ...mon },
+                friday: { ...mon },
+                saturday: { ...mon },
+                sunday: { ...mon },
+            },
+        }));
+    };
+
+    const addCustomDateException = () => {
+        if (!newException.date) {
+            alert("Please select a date for the exception.");
+            return;
+        }
+        if (s.customDates.some((d) => d.date === newException.date)) {
+            alert("This date already exists in the exceptions list.");
+            return;
+        }
+        setS((prev) => ({
+            ...prev,
+            customDates: [...prev.customDates, { ...newException }],
+        }));
+        setNewException({
+            date: "",
+            isOpen: false,
+            openTime: "11:00",
+            closeTime: "22:00",
+            note: "",
+        });
+    };
+
+    const removeCustomDateException = (index) => {
+        setS((prev) => ({
+            ...prev,
+            customDates: prev.customDates.filter((_, i) => i !== index),
+        }));
+    };
+
+    const liveSummary = getScheduleSummary(s);
+    const liveStatus = isRestaurantOpenNow(s);
 
     const input = "w-full rounded-xl border border-border bg-card py-2.5 px-4 text-sm outline-none focus:border-primary";
 
@@ -522,7 +1132,10 @@ function SettingsTab({ restaurant }) {
                 address: s.address,
                 city: s.city,
                 description: s.description,
-                hours: s.hours,
+                hours: liveSummary,
+                scheduleType: s.scheduleType,
+                weeklySchedule: s.weeklySchedule,
+                customDates: s.customDates,
                 prepTime: s.prepTime,
                 priceRange: s.priceRange,
                 deliveryFee: +s.deliveryFee,
@@ -568,7 +1181,6 @@ function SettingsTab({ restaurant }) {
             <div>
                 <h3 className="font-700 text-base border-b border-border pb-2 mb-4">Operations & Pricing</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Opening hours"><input value={s.hours} onChange={(e) => setS({ ...s, hours: e.target.value })} placeholder="e.g. 11:00 - 22:00" className={input} /></Field>
                     <Field label="Preparation time"><input value={s.prepTime} onChange={(e) => setS({ ...s, prepTime: e.target.value })} placeholder="e.g. 20-30 min" className={input} /></Field>
                     <Field label="Price Tier">
                         <select value={s.priceRange} onChange={(e) => setS({ ...s, priceRange: e.target.value })} className={input}>
@@ -583,6 +1195,208 @@ function SettingsTab({ restaurant }) {
                     <div className="sm:col-span-2">
                         <Field label="Delivery / Pickup Time Slots (comma separated)"><input value={s.timeSlots} onChange={(e) => setS({ ...s, timeSlots: e.target.value })} placeholder="e.g. 11:00, 12:00, 17:00, 18:00, 19:00" className={input} /></Field>
                     </div>
+                </div>
+            </div>
+
+            {/* Operating Days & Hours Manager */}
+            <div className="rounded-2xl border border-border/80 bg-secondary/15 p-5 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
+                    <div>
+                        <h3 className="font-700 text-base flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-primary" /> Operating Days & Hours
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Set your operating schedule, weekly hours, and holiday or special event dates.
+                        </p>
+                    </div>
+                    {/* Live Status Badge */}
+                    <div className="flex items-center gap-2 rounded-xl bg-card border border-border px-3 py-1.5 text-xs shadow-sm">
+                        <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", liveStatus.isOpen ? "bg-emerald-500 animate-pulse" : "bg-red-500")} />
+                        <span className="font-600">{liveStatus.isOpen ? "Live: Open for Orders" : "Live: Closed"}</span>
+                        <span className="text-muted-foreground hidden md:inline">({liveSummary})</span>
+                    </div>
+                </div>
+
+                {/* Schedule Presets Selector */}
+                <div>
+                    <label className="text-xs font-700 text-muted-foreground uppercase tracking-wider block mb-2">Schedule Preset</label>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {SCHEDULE_TYPE_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setS({ ...s, scheduleType: opt.value })}
+                                className={cn(
+                                    "flex flex-col items-start p-3 rounded-xl border text-left transition",
+                                    s.scheduleType === opt.value
+                                        ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                        : "border-border bg-card hover:border-primary/50"
+                                )}
+                            >
+                                <span className={cn("text-xs font-700", s.scheduleType === opt.value ? "text-primary" : "text-foreground")}>
+                                    {opt.label}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                                    {opt.desc}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Custom Daily Hours Table (When custom_hours is selected) */}
+                {s.scheduleType === "custom_hours" && (
+                    <div className="space-y-3 pt-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h4 className="text-xs font-700 text-muted-foreground uppercase tracking-wider">Weekly Daily Hours</h4>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={copyMondayToWeekdays}
+                                    className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-600 hover:border-primary transition"
+                                >
+                                    Copy Monday to Mon–Fri
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={copyMondayToAllDays}
+                                    className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-600 hover:border-primary transition"
+                                >
+                                    Apply Monday to All Days
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+                            {DAYS_LIST.map((day) => {
+                                const daySched = s.weeklySchedule?.[day.key] || { isOpen: true, openTime: "11:00", closeTime: "22:00" };
+                                return (
+                                    <div key={day.key} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-3">
+                                        <div className="flex items-center gap-3 w-36">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateDaySchedule(day.key, "isOpen", !daySched.isOpen)}
+                                                className={cn(
+                                                    "rounded-full px-2.5 py-0.5 text-[11px] font-700 transition cursor-pointer",
+                                                    daySched.isOpen
+                                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                                        : "bg-secondary text-muted-foreground"
+                                                )}
+                                            >
+                                                {daySched.isOpen ? "Open" : "Closed"}
+                                            </button>
+                                            <span className="text-xs font-600">{day.label}</span>
+                                        </div>
+
+                                        {daySched.isOpen ? (
+                                            <div className="flex items-center gap-2 text-xs">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-muted-foreground">From:</span>
+                                                    <input
+                                                        type="time"
+                                                        value={daySched.openTime || "11:00"}
+                                                        onChange={(e) => updateDaySchedule(day.key, "openTime", e.target.value)}
+                                                        className="rounded-lg border border-border bg-secondary/30 px-2 py-1 text-xs outline-none focus:border-primary"
+                                                    />
+                                                </div>
+                                                <span className="text-muted-foreground">—</span>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-muted-foreground">To:</span>
+                                                    <input
+                                                        type="time"
+                                                        value={daySched.closeTime || "22:00"}
+                                                        onChange={(e) => updateDaySchedule(day.key, "closeTime", e.target.value)}
+                                                        className="rounded-lg border border-border bg-secondary/30 px-2 py-1 text-xs outline-none focus:border-primary"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">Closed all day</span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Custom Dates & Holiday Exceptions */}
+                <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-700 text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4" /> Custom Dates & Holiday Exceptions
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                        Schedule holidays when you are closed (e.g. Christmas, Poya Days) or special dates when you have different operating hours.
+                    </p>
+
+                    {/* Add Exception Form */}
+                    <div className="grid gap-2 sm:grid-cols-4 items-end rounded-xl border border-dashed border-border bg-card p-3">
+                        <div>
+                            <label className="text-[11px] font-600 text-muted-foreground block mb-1">Date</label>
+                            <input
+                                type="date"
+                                value={newException.date}
+                                onChange={(e) => setNewException({ ...newException, date: e.target.value })}
+                                className="w-full rounded-lg border border-border bg-secondary/30 px-2 py-1.5 text-xs outline-none focus:border-primary"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-600 text-muted-foreground block mb-1">Status</label>
+                            <select
+                                value={newException.isOpen ? "open" : "closed"}
+                                onChange={(e) => setNewException({ ...newException, isOpen: e.target.value === "open" })}
+                                className="w-full rounded-lg border border-border bg-secondary/30 px-2 py-1.5 text-xs outline-none focus:border-primary"
+                            >
+                                <option value="closed">Closed (Holiday / Day Off)</option>
+                                <option value="open">Open (Special Hours)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-600 text-muted-foreground block mb-1">Note / Reason</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. New Year, Poya Day"
+                                value={newException.note}
+                                onChange={(e) => setNewException({ ...newException, note: e.target.value })}
+                                className="w-full rounded-lg border border-border bg-secondary/30 px-2 py-1.5 text-xs outline-none focus:border-primary"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={addCustomDateException}
+                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-700 text-primary-foreground hover:opacity-90 transition"
+                        >
+                            + Add Exception
+                        </button>
+                    </div>
+
+                    {/* Active Exceptions List */}
+                    {s.customDates && s.customDates.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                            {s.customDates.map((cd, i) => (
+                                <div key={i} className="flex items-center justify-between rounded-xl border border-border bg-card p-2.5 text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-700 text-foreground">{cd.date}</span>
+                                        <span className={cn(
+                                            "rounded-full px-2 py-0.5 text-[10px] font-700",
+                                            cd.isOpen ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                                        )}>
+                                            {cd.isOpen ? "Open" : "Closed"}
+                                        </span>
+                                        {cd.note && <span className="text-muted-foreground">· {cd.note}</span>}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeCustomDateException(i)}
+                                        className="text-muted-foreground hover:text-destructive p-1 transition"
+                                        title="Remove exception"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

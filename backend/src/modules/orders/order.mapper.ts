@@ -15,6 +15,15 @@ export interface StatusHistoryResponseDto {
   changedBy: string;
 }
 
+export interface OrderMessageResponseDto {
+  id?: string;
+  sender: 'customer' | 'restaurant' | 'system';
+  senderId: string;
+  senderName: string;
+  text: string;
+  sentAt: string;
+}
+
 export interface OrderResponseDto {
   id: string;
   orderNumber: string;
@@ -25,6 +34,8 @@ export interface OrderResponseDto {
   customerEmail: string;
   deliveryType: string;
   status: string;
+  rejectionReason?: string;
+  messages?: OrderMessageResponseDto[];
   subtotal: number; // in cents
   deliveryFee: number; // in cents
   serviceFee: number; // in cents
@@ -71,6 +82,15 @@ export function toOrderResponseDto(order: Partial<IOrder> & { _id: unknown }): O
     customerEmail: order.customerEmail || '',
     deliveryType: order.deliveryType || 'pickup',
     status: order.status || 'received',
+    rejectionReason: order.rejectionReason || '',
+    messages: order.messages ? order.messages.map((m) => ({
+      id: (m as any)._id ? (m as any)._id.toString() : '',
+      sender: m.sender,
+      senderId: m.senderId ? m.senderId.toString() : '',
+      senderName: m.senderName,
+      text: m.text,
+      sentAt: m.sentAt ? new Date(m.sentAt).toISOString() : new Date().toISOString(),
+    })) : [],
     subtotal: order.subtotal ?? 0,
     deliveryFee: order.deliveryFee ?? 0,
     serviceFee: order.serviceFee ?? 0,

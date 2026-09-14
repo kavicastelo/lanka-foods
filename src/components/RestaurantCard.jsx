@@ -32,9 +32,15 @@ export default function RestaurantCard({ restaurant, variant: _variant = "grid" 
                         {restaurant.logoText}
                     </div>
                 </div>
-                {!restaurant.open && (
-                    <div className="absolute bottom-3 right-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-600 text-white backdrop-blur">
+                {!restaurant.open ? (
+                    <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/75 px-2.5 py-1 text-[11px] font-600 text-white backdrop-blur shadow-sm">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                         Closed now
+                    </div>
+                ) : (
+                    <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-600 text-emerald-300 backdrop-blur">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        {restaurant.scheduleType === "24_7" ? "Open 24/7" : "Open now"}
                     </div>
                 )}
             </div>

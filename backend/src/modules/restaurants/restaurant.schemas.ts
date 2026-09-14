@@ -26,6 +26,29 @@ export const updateRestaurantSettingsSchema = z.object({
   catering: z.boolean().optional(),
   isOpen: z.boolean().optional(),
   hours: z.string().max(100).trim().optional(),
+  scheduleType: z.enum(['24_7', '24_5', '24_weekends', 'custom_hours', 'custom_dates']).optional(),
+  weeklySchedule: z
+    .object({
+      monday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+      tuesday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+      wednesday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+      thursday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+      friday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+      saturday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+      sunday: z.object({ isOpen: z.boolean(), openTime: z.string(), closeTime: z.string() }).optional(),
+    })
+    .optional(),
+  customDates: z
+    .array(
+      z.object({
+        date: z.string(),
+        isOpen: z.boolean(),
+        openTime: z.string().optional(),
+        closeTime: z.string().optional(),
+        note: z.string().optional(),
+      })
+    )
+    .optional(),
   timeSlots: z.array(z.string()).optional(),
   cuisines: z.array(z.string()).optional(),
   priceRange: z.enum(['€', '€€', '€€€']).optional(),

@@ -20,18 +20,16 @@ export async function notificationRoutes(fastify: FastifyInstance) {
 
       const options = queryResult.success ? queryResult.data : { limit: 20, unreadOnly: false };
 
-      let restaurantId: string | undefined;
+      let restaurantIds: string[] = [];
       if (user.role === 'RESTAURANT_ADMIN') {
-        const restaurant = await Restaurant.findOne({ ownerId: user.id });
-        if (restaurant) {
-          restaurantId = restaurant._id.toString();
-        }
+        const userRestaurants = await Restaurant.find({ ownerId: user.id }).select('_id');
+        restaurantIds = userRestaurants.map((r) => r._id.toString());
       }
 
       const result = await NotificationService.getNotificationsForUser({
         userId: user.id,
         role: user.role,
-        restaurantId,
+        restaurantIds,
         limit: options.limit,
         unreadOnly: options.unreadOnly,
       });
@@ -66,18 +64,16 @@ export async function notificationRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const user = request.user!;
 
-      let restaurantId: string | undefined;
+      let restaurantIds: string[] = [];
       if (user.role === 'RESTAURANT_ADMIN') {
-        const restaurant = await Restaurant.findOne({ ownerId: user.id });
-        if (restaurant) {
-          restaurantId = restaurant._id.toString();
-        }
+        const userRestaurants = await Restaurant.find({ ownerId: user.id }).select('_id');
+        restaurantIds = userRestaurants.map((r) => r._id.toString());
       }
 
       const result = await NotificationService.markAllAsRead({
         userId: user.id,
         role: user.role,
-        restaurantId,
+        restaurantIds,
       });
 
       return reply.status(200).send({ success: true, ...result });

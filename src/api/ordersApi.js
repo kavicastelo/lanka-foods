@@ -40,8 +40,16 @@ export const ordersApi = {
     return res.data || res;
   },
 
-  async updateOrderStatus(id, status) {
-    const res = await apiClient.patch(`/api/orders/${id}/status`, { status });
+  async updateOrderStatus(id, statusOrPayload, extra = {}) {
+    const body = typeof statusOrPayload === 'object'
+      ? statusOrPayload
+      : { status: statusOrPayload, ...extra };
+    const res = await apiClient.patch(`/api/orders/${id}/status`, body);
+    return res.data || res;
+  },
+
+  async sendOrderMessage(id, text) {
+    const res = await apiClient.post(`/api/orders/${id}/messages`, { text });
     return res.data || res;
   },
 };

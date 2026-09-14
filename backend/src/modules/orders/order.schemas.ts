@@ -43,6 +43,12 @@ export const updateOrderStatusSchema = z.object({
   status: z.enum(['accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled', 'rejected'], {
     required_error: 'Valid status is required',
   }),
+  rejectionReason: z.string().max(500).optional(),
+  note: z.string().max(500).optional(),
+});
+
+export const createOrderMessageSchema = z.object({
+  text: z.string({ required_error: 'Message text is required' }).min(1, 'Message cannot be empty').max(1000, 'Message cannot exceed 1000 characters').trim(),
 });
 
 export const customerOrdersQuerySchema = z.object({
@@ -64,5 +70,6 @@ export const restaurantOrdersQuerySchema = z.object({
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+export type CreateOrderMessageInput = z.infer<typeof createOrderMessageSchema>;
 export type CustomerOrdersQueryInput = z.infer<typeof customerOrdersQuerySchema>;
 export type RestaurantOrdersQueryInput = z.infer<typeof restaurantOrdersQuerySchema>;

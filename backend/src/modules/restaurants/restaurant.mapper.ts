@@ -1,4 +1,10 @@
-import type { IRestaurant } from '../../models/restaurant.model.js';
+import type {
+  ICustomDateSchedule,
+  IRestaurant,
+  IWeeklySchedule,
+  ScheduleType,
+} from '../../models/restaurant.model.js';
+import { evaluateRestaurantOpenStatus, getScheduleSummary } from './restaurant.schedule.js';
 
 export interface PublicRestaurantDto {
   id: string;
@@ -22,6 +28,11 @@ export interface PublicRestaurantDto {
   catering: boolean;
   isOpen: boolean;
   hours: string;
+  scheduleType: ScheduleType;
+  weeklySchedule?: IWeeklySchedule;
+  customDates?: ICustomDateSchedule[];
+  isCurrentlyOpen: boolean;
+  openReason?: string;
   timeSlots: string[];
   featured: boolean;
   status: string;
@@ -37,6 +48,9 @@ export interface OwnerRestaurantDto extends PublicRestaurantDto {
 }
 
 export function toPublicRestaurantDto(restaurant: Partial<IRestaurant> & { _id: unknown }): PublicRestaurantDto {
+  const openStatus = evaluateRestaurantOpenStatus(restaurant);
+  const summary = getScheduleSummary(restaurant);
+
   return {
     id: restaurant._id ? restaurant._id.toString() : '',
     name: restaurant.name || '',
@@ -58,7 +72,12 @@ export function toPublicRestaurantDto(restaurant: Partial<IRestaurant> & { _id: 
     halal: restaurant.halal ?? false,
     catering: restaurant.catering ?? false,
     isOpen: restaurant.isOpen ?? true,
-    hours: restaurant.hours || '',
+    hours: restaurant.hours || summary,
+    scheduleType: restaurant.scheduleType || 'custom_hours',
+    weeklySchedule: restaurant.weeklySchedule,
+    customDates: restaurant.customDates || [],
+    isCurrentlyOpen: openStatus.isOpen,
+    openReason: openStatus.reason,
     timeSlots: restaurant.timeSlots || [],
     featured: restaurant.featured ?? false,
     status: restaurant.status || 'pending',
