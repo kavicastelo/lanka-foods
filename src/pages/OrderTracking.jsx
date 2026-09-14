@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Check, Star } from "lucide-react";
+import { Check, Star, AlertCircle, Phone, ArrowLeft } from "lucide-react";
 import { useOrderById, useCreateReview } from "@/hooks/useMarketplaceData";
 import { restaurantsApi } from "@/api/restaurantsApi";
 import StarRating from "@/components/StarRating";
+import OrderChatBox from "@/components/OrderChatBox";
+import { WhatsAppIcon, getWhatsAppUrl } from "@/utils/communication";
 import { cn } from "@/lib/utils";
 
 const pickupFlow = [
@@ -51,9 +53,16 @@ export default function OrderTracking() {
         );
     }
 
+    const isRejected = order.status === "rejected";
     const flow = order.delivery_type === "delivery" ? deliveryFlow : pickupFlow;
     const currentIdx = flow.findIndex((f) => f.id === order.status);
     const displayIdx = currentIdx >= 0 ? currentIdx : 0;
+
+    const whatsappDefaultMsg = isRejected
+        ? `Hi ${restaurant?.name || "Restaurant"}, I am messaging regarding my rejected order #${order.order_number || order.orderNumber}. Could you please advise?`
+        : `Hi ${restaurant?.name || "Restaurant"}, I have an inquiry regarding my order #${order.order_number || order.orderNumber}.`;
+
+    const whatsappUrl = getWhatsAppUrl(restaurant?.phone, whatsappDefaultMsg);
 
     const submitReview = () => {
         createReviewMutation.mutate(
@@ -69,50 +78,106 @@ export default function OrderTracking() {
     };
 
     return (
-        <div className="mx-auto max-w-3xl px-6 py-10">
+        <div className="mx-auto max-w-3xl px-6 py-10 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="font-display text-3xl font-600">Track your order</h1>
                     <p className="mt-1 text-sm text-muted-foreground">Order #{order.order_number} · {restaurant?.name}</p>
                 </div>
-                <span className={cn("rounded-full px-3 py-1.5 text-sm font-700 capitalize", order.status === "completed" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
-                    {flow[displayIdx]?.label}
-                </span>
+                {isRejected ? (
+                    <span className="rounded-full bg-destructive/10 px-3.5 py-1.5 text-sm font-700 text-destructive">
+                        Order Rejected
+                    </span>
+                ) : (
+                    <span className={cn("rounded-full px-3 py-1.5 text-sm font-700 capitalize", order.status === "completed" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
+                        {flow[displayIdx]?.label}
+                    </span>
+                )}
             </div>
 
-            {/* Timeline */}
-            <div className="mt-8 rounded-2xl border border-border bg-card p-6">
-                <div className="flex flex-col gap-0">
-                    {flow.map((f, i) => {
-                        const done = i < displayIdx;
-                        const active = i === displayIdx;
-                        return (
-                            <div key={f.id} className="flex gap-4">
-                                <div className="flex flex-col items-center">
-                                    <div className={cn("grid h-10 w-10 place-items-center rounded-full border-2 transition", done ? "border-primary bg-primary text-primary-foreground" : active ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary text-muted-foreground")}>
-                                        {done ? <Check className="h-5 w-5" /> : <span className="text-sm font-700">{i + 1}</span>}
-                                    </div>
-                                    {i < flow.length - 1 && <div className={cn("my-1 w-0.5 flex-1 rounded-full", i < displayIdx ? "bg-primary" : "bg-border")} style={{ minHeight: 36 }} />}
-                                </div>
-                                <div className="pb-6 pt-1.5">
-                                    <div className={cn("font-600", active && "text-primary")}>{f.label}</div>
-                                    {active && <div className="mt-0.5 text-sm text-muted-foreground">{order.status === "completed" ? "Done — enjoy your meal!" : "In progress…"}</div>}
-                                    {done && <div className="mt-0.5 text-sm text-green-600">Completed</div>}
-                                </div>
+            {/* REJECTION BANNER & TWO-WAY COMMUNICATION */}
+            {isRejected ? (
+                <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/5 p-6 text-foreground shadow-sm">
+                    <div className="flex items-start gap-4">
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+                            <AlertCircle className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="font-display text-xl font-700 text-destructive">Order Rejected by Restaurant</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                We are sorry! {restaurant?.name || "The restaurant"} was unable to fulfill your order.
+                            </p>
+
+                            <div className="mt-3 rounded-xl border border-destructive/20 bg-card p-4 text-sm shadow-xs">
+                                <span className="font-700 text-xs uppercase tracking-wider text-destructive block mb-1">
+                                    Reason from Restaurant:
+                                </span>
+                                <p className="text-foreground font-500 italic">
+                                    "{order.rejectionReason || "The kitchen is currently unable to accept this order."}"
+                                </p>
                             </div>
-                        );
-                    })}
+
+                            {/* Direct Communication Action Buttons */}
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                                {whatsappUrl && (
+                                    <a
+                                        href={whatsappUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-700 text-white shadow-sm transition hover:bg-emerald-700"
+                                    >
+                                        <WhatsAppIcon className="h-4 w-4" />
+                                        Chat via WhatsApp
+                                    </a>
+                                )}
+                                {restaurant?.phone && (
+                                    <a
+                                        href={`tel:${restaurant.phone}`}
+                                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-700 text-foreground transition hover:border-primary"
+                                    >
+                                        <Phone className="h-4 w-4 text-primary" />
+                                        Call {restaurant.phone}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                /* Timeline for active/completed orders */
+                <div className="rounded-2xl border border-border bg-card p-6">
+                    <div className="flex flex-col gap-0">
+                        {flow.map((f, i) => {
+                            const done = i < displayIdx;
+                            const active = i === displayIdx;
+                            return (
+                                <div key={f.id} className="flex gap-4">
+                                    <div className="flex flex-col items-center">
+                                        <div className={cn("grid h-10 w-10 place-items-center rounded-full border-2 transition", done ? "border-primary bg-primary text-primary-foreground" : active ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary text-muted-foreground")}>
+                                            {done ? <Check className="h-5 w-5" /> : <span className="text-sm font-700">{i + 1}</span>}
+                                        </div>
+                                        {i < flow.length - 1 && <div className={cn("my-1 w-0.5 flex-1 rounded-full", i < displayIdx ? "bg-primary" : "bg-border")} style={{ minHeight: 36 }} />}
+                                    </div>
+                                    <div className="pb-6 pt-1.5">
+                                        <div className={cn("font-600", active && "text-primary")}>{f.label}</div>
+                                        {active && <div className="mt-0.5 text-sm text-muted-foreground">{order.status === "completed" ? "Done — enjoy your meal!" : "In progress…"}</div>}
+                                        {done && <div className="mt-0.5 text-sm text-green-600">Completed</div>}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Order details */}
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-3">
                 <Detail label="Date" value={order.scheduled_date} />
                 <Detail label="Time" value={order.scheduled_time} />
                 <Detail label={order.delivery_type === "pickup" ? "Pickup" : "Delivery"} value={order.delivery_type === "pickup" ? restaurant?.city : order.delivery_address} />
             </div>
 
-            <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+            <div className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="text-sm font-700">Order items</h3>
                 <div className="mt-3 space-y-2">
                     {order.items.map((i, idx) => (
@@ -127,6 +192,9 @@ export default function OrderTracking() {
                     <span className="font-display text-xl font-700 text-primary">€{order.total.toFixed(2)}</span>
                 </div>
             </div>
+
+            {/* Direct Order Chat & Communication */}
+            <OrderChatBox order={order} currentRole="customer" title={`Direct Message with ${restaurant?.name || "Restaurant"}`} />
 
             {/* Rate */}
             {order.status === "completed" && (

@@ -66,6 +66,7 @@ export class NotificationService {
     userId: string;
     role: string;
     restaurantId?: string;
+    restaurantIds?: string[];
     limit?: number;
     unreadOnly?: boolean;
   }): Promise<{ notifications: INotification[]; unreadCount: number }> {
@@ -78,10 +79,22 @@ export class NotificationService {
     }
 
     if (options.role === 'RESTAURANT_ADMIN') {
-      queryConditions.push({ role: 'RESTAURANT_ADMIN' });
-      if (options.restaurantId) {
-        queryConditions.push({ restaurantId: new mongoose.Types.ObjectId(options.restaurantId) });
+      const restIds = [
+        ...(options.restaurantIds || []),
+        ...(options.restaurantId ? [options.restaurantId] : []),
+      ].filter(Boolean);
+
+      if (restIds.length > 0) {
+        queryConditions.push({
+          restaurantId: { $in: restIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        });
       }
+
+      // Only match general role broadcasts that do NOT have a specific restaurant attached
+      queryConditions.push({
+        role: 'RESTAURANT_ADMIN',
+        restaurantId: { $in: [null, undefined] },
+      });
     }
 
     const filter: any = { $or: queryConditions };
@@ -115,6 +128,7 @@ export class NotificationService {
     userId: string;
     role: string;
     restaurantId?: string;
+    restaurantIds?: string[];
   }): Promise<{ updatedCount: number }> {
     const queryConditions: any[] = [{ userId: new mongoose.Types.ObjectId(options.userId) }];
 
@@ -123,10 +137,21 @@ export class NotificationService {
     }
 
     if (options.role === 'RESTAURANT_ADMIN') {
-      queryConditions.push({ role: 'RESTAURANT_ADMIN' });
-      if (options.restaurantId) {
-        queryConditions.push({ restaurantId: new mongoose.Types.ObjectId(options.restaurantId) });
+      const restIds = [
+        ...(options.restaurantIds || []),
+        ...(options.restaurantId ? [options.restaurantId] : []),
+      ].filter(Boolean);
+
+      if (restIds.length > 0) {
+        queryConditions.push({
+          restaurantId: { $in: restIds.map((id) => new mongoose.Types.ObjectId(id)) },
+        });
       }
+
+      queryConditions.push({
+        role: 'RESTAURANT_ADMIN',
+        restaurantId: { $in: [null, undefined] },
+      });
     }
 
     const filter = { $or: queryConditions, isRead: false };

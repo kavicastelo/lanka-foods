@@ -26,6 +26,15 @@ export interface IStatusHistoryEntry {
   status: OrderStatus;
   changedAt: Date;
   changedBy: Types.ObjectId;
+  note?: string;
+}
+
+export interface IOrderMessage {
+  sender: 'customer' | 'restaurant' | 'system';
+  senderId: Types.ObjectId;
+  senderName: string;
+  text: string;
+  sentAt: Date;
 }
 
 export interface IOrder extends Document {
@@ -37,6 +46,8 @@ export interface IOrder extends Document {
   customerEmail: string;
   deliveryType: DeliveryType;
   status: OrderStatus;
+  rejectionReason?: string;
+  messages: IOrderMessage[];
   subtotal: number; // in cents
   deliveryFee: number; // in cents
   serviceFee: number; // in cents
@@ -98,8 +109,20 @@ const statusHistorySchema = new Schema<IStatusHistoryEntry>(
     },
     changedAt: { type: Date, default: Date.now },
     changedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    note: { type: String, default: '', trim: true },
   },
   { _id: false }
+);
+
+const orderMessageSchema = new Schema<IOrderMessage>(
+  {
+    sender: { type: String, enum: ['customer', 'restaurant', 'system'], required: true },
+    senderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    senderName: { type: String, required: true, trim: true },
+    text: { type: String, required: true, trim: true },
+    sentAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
 );
 
 const orderSchema = new Schema<IOrder>(
@@ -136,6 +159,11 @@ const orderSchema = new Schema<IOrder>(
       enum: ['received', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled', 'rejected'],
       default: 'received',
       index: true,
+    },
+    rejectionReason: { type: String, default: '', trim: true },
+    messages: {
+      type: [orderMessageSchema],
+      default: [],
     },
     subtotal: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, required: true, min: 0 },

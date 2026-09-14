@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Star, MapPin, Clock, Phone, Bike, Store, Heart, Plus, Leaf, Check, ChevronRight, Settings, MessageSquare } from "lucide-react";
+import { Star, MapPin, Clock, Phone, Bike, Store, Heart, Plus, Leaf, Check, ChevronRight, Settings, MessageSquare, Calendar } from "lucide-react";
 import { useMarketplace } from "@/context/MarketplaceContext";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 import { useRestaurantBySlug, useRestaurantMenu, useRestaurantReviews, useFavorites, computeRestaurantStats, useCreateReview } from "@/hooks/useMarketplaceData";
@@ -9,6 +9,7 @@ import StarRating from "@/components/StarRating";
 import FoodItemModal from "@/components/FoodItemModal";
 import { cn } from "@/lib/utils";
 import SeoHead from "@/components/SeoHead";
+import { DAYS_LIST } from "@/utils/schedule";
 
 export default function RestaurantStorefront() {
     const { slug } = useParams();
@@ -20,6 +21,7 @@ export default function RestaurantStorefront() {
     const [activeItem, setActiveItem] = useState(null);
     const [activeCat, setActiveCat] = useState(null);
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
 
     const { data: categories = [] } = useRestaurantMenu(slug);
     const { data: reviews = [] } = useRestaurantReviews(restaurant?.id);
@@ -169,16 +171,40 @@ export default function RestaurantStorefront() {
                                     <span className="font-400 text-amber-600/70">({stats.reviewCount})</span>
                                 </span>
                                 <span className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="h-4 w-4" />{restaurant.address}</span>
-                                <span className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-4 w-4" />{restaurant.hours}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowScheduleModal(true)}
+                                    className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition group cursor-pointer"
+                                    title="View full opening hours & schedule"
+                                >
+                                    <Clock className="h-4 w-4 text-primary" />
+                                    <span className="underline decoration-dotted underline-offset-2">{restaurant.scheduleSummary || restaurant.hours}</span>
+                                </button>
                                 <span className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-4 w-4" />{restaurant.phone}</span>
                             </div>
-                            <div className="mt-3 flex flex-wrap gap-2">
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
                                 {restaurant.pickup && <Badge icon={Store} tone="green">Pickup available</Badge>}
                                 {restaurant.delivery && <Badge icon={Bike} tone="blue">Delivery · €{restaurant.deliveryFee.toFixed(2)}</Badge>}
                                 {restaurant.halal && <Badge tone="purple">Halal</Badge>}
                                 {restaurant.catering && <Badge tone="amber">Catering</Badge>}
-                                <Badge tone={restaurant.open ? "green" : "red"}>{restaurant.open ? "Open now" : "Closed"}</Badge>
+                                <button type="button" onClick={() => setShowScheduleModal(true)} className="cursor-pointer transition hover:opacity-85">
+                                    <Badge tone={restaurant.open ? "green" : "red"}>
+                                        <span className={cn("h-1.5 w-1.5 rounded-full inline-block mr-1", restaurant.open ? "bg-emerald-500" : "bg-red-500")} />
+                                        {restaurant.open ? "Open now" : "Closed now"}
+                                    </Badge>
+                                </button>
                             </div>
+                            {!restaurant.open && (
+                                <div className="mt-3 flex items-start gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 text-xs text-amber-900 dark:text-amber-200">
+                                    <Clock className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                                    <div>
+                                        <p className="font-700">Currently Closed for Orders</p>
+                                        <p className="mt-0.5 text-muted-foreground">
+                                            {restaurant.openStatus?.reason || "This restaurant is currently closed. Browse the menu or click opening hours to view regular schedule."}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -300,6 +326,7 @@ export default function RestaurantStorefront() {
             <div className="h-16" />
             {activeItem && <FoodItemModal item={activeItem} restaurant={restaurant} onClose={() => setActiveItem(null)} />}
             {showFeedbackModal && <StorefrontReviewModal restaurant={restaurant} onClose={() => setShowFeedbackModal(false)} />}
+            {showScheduleModal && <StorefrontScheduleModal restaurant={restaurant} onClose={() => setShowScheduleModal(false)} />}
         </div>
     );
 }
@@ -379,5 +406,156 @@ function Badge({ icon: Icon = null, tone = "gray", children }) {
             {Icon && <Icon className="h-3 w-3" />}
             {children}
         </span>
+    );
+}
+
+function StorefrontScheduleModal({ restaurant, onClose }) {
+    const currentDayIndex = new Date().getDay(); // 0 = Sunday, 1 = Monday...
+    const daysKeys = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const todayKey = daysKeys[currentDayIndex];
+
+    const scheduleTypeLabels = {
+        "24_7": "Open 24 Hours, 7 Days a Week",
+        "24_5": "Open 24 Hours Monday to Friday (Closed Weekends)",
+        "24_weekends": "Open 24 Hours Weekends (Saturday & Sunday)",
+        "custom_hours": "Custom Daily Operating Hours",
+        "custom_dates": "Special Scheduled Dates Only",
+    };
+
+    const ws = restaurant.weeklySchedule;
+    const customDates = Array.isArray(restaurant.customDates) ? restaurant.customDates : [];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                    <div className="flex items-center gap-2.5">
+                        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+                            <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-display text-lg font-700">{restaurant.name}</h3>
+                            <p className="text-xs text-muted-foreground">Opening Hours & Schedule</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="rounded-full p-2 text-muted-foreground hover:bg-secondary transition">✕</button>
+                </div>
+
+                {/* Current Status Pill */}
+                <div className={cn(
+                    "flex items-center justify-between rounded-2xl p-4 border",
+                    restaurant.open
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200"
+                        : "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
+                )}>
+                    <div className="flex items-center gap-2">
+                        <span className={cn("h-2.5 w-2.5 rounded-full animate-ping", restaurant.open ? "bg-emerald-500" : "bg-red-500")} />
+                        <span className="font-700 text-sm">{restaurant.open ? "Open for orders right now" : "Currently closed for orders"}</span>
+                    </div>
+                    {restaurant.openStatus?.reason && (
+                        <span className="text-xs font-500 opacity-90">{restaurant.openStatus.reason}</span>
+                    )}
+                </div>
+
+                {/* Operating Model Summary */}
+                <div className="rounded-2xl border border-border bg-secondary/20 p-3.5 text-xs text-muted-foreground">
+                    <span className="font-600 text-foreground">Operating Schedule: </span>
+                    {scheduleTypeLabels[restaurant.scheduleType] || restaurant.scheduleSummary || "Standard Hours"}
+                </div>
+
+                {/* Weekly Hours Table */}
+                <div>
+                    <h4 className="font-700 text-xs text-muted-foreground uppercase tracking-wider mb-2.5">Weekly Schedule</h4>
+                    <div className="divide-y divide-border rounded-2xl border border-border overflow-hidden bg-card text-sm">
+                        {DAYS_LIST.map((day) => {
+                            const isToday = day.key === todayKey;
+                            const daySched = ws?.[day.key];
+
+                            let hoursText = "Closed";
+                            let isOpenDay = false;
+
+                            if (restaurant.scheduleType === "24_7") {
+                                hoursText = "Open 24 Hours";
+                                isOpenDay = true;
+                            } else if (restaurant.scheduleType === "24_5") {
+                                const isWk = !["saturday", "sunday"].includes(day.key);
+                                hoursText = isWk ? "Open 24 Hours" : "Closed";
+                                isOpenDay = isWk;
+                            } else if (restaurant.scheduleType === "24_weekends") {
+                                const isWknd = ["saturday", "sunday"].includes(day.key);
+                                hoursText = isWknd ? "Open 24 Hours" : "Closed";
+                                isOpenDay = isWknd;
+                            } else if (daySched) {
+                                isOpenDay = daySched.isOpen;
+                                hoursText = daySched.isOpen ? `${daySched.openTime} – ${daySched.closeTime}` : "Closed";
+                            } else if (restaurant.hours) {
+                                hoursText = restaurant.hours;
+                                isOpenDay = true;
+                            }
+
+                            return (
+                                <div
+                                    key={day.key}
+                                    className={cn(
+                                        "flex items-center justify-between px-4 py-2.5 transition",
+                                        isToday && "bg-primary/10 font-600 text-primary"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span>{day.label}</span>
+                                        {isToday && (
+                                            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-700 text-primary-foreground">
+                                                Today
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className={cn(
+                                        "text-xs font-600",
+                                        isOpenDay ? "text-foreground" : "text-muted-foreground"
+                                    )}>
+                                        {hoursText}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Holiday / Custom Dates Exceptions if any */}
+                {customDates.length > 0 && (
+                    <div>
+                        <h4 className="font-700 text-xs text-muted-foreground uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5" /> Special Dates & Holiday Exceptions
+                        </h4>
+                        <div className="space-y-2">
+                            {customDates.map((cd, i) => (
+                                <div key={i} className="flex items-center justify-between rounded-xl border border-border bg-secondary/30 p-2.5 text-xs">
+                                    <div>
+                                        <span className="font-600 text-foreground">{cd.date}</span>
+                                        {cd.note && <span className="text-muted-foreground ml-1.5">({cd.note})</span>}
+                                    </div>
+                                    <span className={cn(
+                                        "rounded-full px-2 py-0.5 text-[11px] font-700",
+                                        cd.isOpen ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                                    )}>
+                                        {cd.isOpen ? (cd.openTime && cd.closeTime ? `${cd.openTime} – ${cd.closeTime}` : "Open") : "Closed"}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="pt-2 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-full bg-secondary px-5 py-2 text-xs font-700 hover:bg-secondary/80 transition"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }

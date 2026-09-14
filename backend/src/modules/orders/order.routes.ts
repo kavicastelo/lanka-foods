@@ -3,6 +3,7 @@ import { authenticate } from '../../middleware/authenticate.js';
 import { authorize } from '../../middleware/authorize.js';
 import {
   createOrderSchema,
+  createOrderMessageSchema,
   customerOrdersQuerySchema,
   restaurantOrdersQuerySchema,
   updateOrderStatusSchema,
@@ -122,10 +123,39 @@ export async function orderRoutes(fastify: FastifyInstance) {
         request.user.id,
         request.user.role,
         id,
-        parseResult.data.status
+        parseResult.data
       );
 
       return reply.status(200).send({ message: 'Order status updated successfully', order });
+    }
+  );
+
+  // POST /api/orders/:id/messages (Two-way communication between customer and restaurant)
+  fastify.post(
+    '/api/orders/:id/messages',
+    {
+      preHandler: [authenticate],
+    },
+    async (request, reply) => {
+      if (!request.user) {
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        });
+      }
+
+      const { id } = request.params as { id: string };
+      const parseResult = createOrderMessageSchema.safeParse(request.body);
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          error: {
+            code: 'BAD_REQUEST',
+            message: parseResult.error.errors[0]?.message || 'Invalid message payload',
+          },
+        });
+      }
+
+      const order = await OrderService.addOrderMessage(id, request.user, parseResult.data.text);
+      return reply.status(201).send({ message: 'Message sent successfully', order });
     }
   );
 

@@ -15,6 +15,8 @@ import { dashboardApi } from "@/api/dashboardApi";
 import { authApi } from "@/api/authApi";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 
+import { isRestaurantOpenNow, getScheduleSummary } from "@/utils/schedule";
+
 // --- Field mapping: DB & DTO format → frontend legacy props (keeps components unchanged) ---
 
 export function mapRestaurant(r) {
@@ -27,6 +29,9 @@ export function mapRestaurant(r) {
         : typeof rawCuisines === "string"
         ? rawCuisines.split(",").map((s) => s.trim()).filter(Boolean)
         : [];
+
+    const openStatus = isRestaurantOpenNow(r);
+    const scheduleSummary = getScheduleSummary(r);
 
     return {
         ...r,
@@ -42,8 +47,14 @@ export function mapRestaurant(r) {
         prepTime: r.prepTime || r.prep_time || "25-35 min",
         minOrder: r.minOrder ?? r.min_order ?? 15,
         deliveryFee: r.deliveryFee ?? r.delivery_fee ?? 3.90,
-        open: r.status === "active" || r.is_open === true || r.open === true,
-        isOpen: r.status === "active" || r.is_open === true,
+        hours: r.hours || scheduleSummary,
+        scheduleType: r.scheduleType || "custom_hours",
+        weeklySchedule: r.weeklySchedule,
+        customDates: r.customDates || [],
+        open: openStatus.isOpen,
+        isOpen: openStatus.isOpen,
+        openStatus,
+        scheduleSummary,
         timeSlots: r.timeSlots || r.time_slots || [],
     };
 }
@@ -93,6 +104,11 @@ export function mapOrder(o) {
         customer: custName,
         customerName: custName,
         customer_name: custName,
+        customerPhone: o.customerPhone || o.customer_phone || "",
+        customer_phone: o.customerPhone || o.customer_phone || "",
+        rejectionReason: o.rejectionReason || o.rejection_reason || "",
+        rejection_reason: o.rejectionReason || o.rejection_reason || "",
+        messages: o.messages || [],
         type: delType,
         deliveryType: delType,
         delivery_type: delType,
@@ -504,13 +520,34 @@ export function usePlaceOrder() {
 export function useUpdateOrderStatus() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: /** @param {any} p */ async ({ orderId, newStatus }) => {
-            return await ordersApi.updateOrderStatus(orderId, newStatus);
+        mutationFn: /** @param {any} p */ async ({ orderId, newStatus, rejectionReason, note }) => {
+            return await ordersApi.updateOrderStatus(orderId, {
+                status: newStatus,
+                rejectionReason,
+                note,
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["restaurantOrders"] });
             queryClient.invalidateQueries({ queryKey: ["order"] });
+            queryClient.invalidateQueries({ queryKey: ["orderById"] });
+            queryClient.invalidateQueries({ queryKey: ["customerOrders"] });
             queryClient.invalidateQueries({ queryKey: ["dashboardMetrics"] });
+        },
+    });
+}
+
+export function useSendOrderMessage() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} p */ async ({ orderId, text }) => {
+            return await ordersApi.sendOrderMessage(orderId, text);
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ["order", variables?.orderId] });
+            queryClient.invalidateQueries({ queryKey: ["orderById", variables?.orderId] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantOrders"] });
+            queryClient.invalidateQueries({ queryKey: ["customerOrders"] });
         },
     });
 }

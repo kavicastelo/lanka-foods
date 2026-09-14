@@ -2,6 +2,31 @@ import { Schema, model, type Document, type Types } from 'mongoose';
 
 export type RestaurantStatus = 'pending' | 'active' | 'suspended' | 'rejected' | 'changes_requested';
 export type PriceRange = '€' | '€€' | '€€€';
+export type ScheduleType = '24_7' | '24_5' | '24_weekends' | 'custom_hours' | 'custom_dates';
+
+export interface IDaySchedule {
+  isOpen: boolean;
+  openTime: string;
+  closeTime: string;
+}
+
+export interface IWeeklySchedule {
+  monday: IDaySchedule;
+  tuesday: IDaySchedule;
+  wednesday: IDaySchedule;
+  thursday: IDaySchedule;
+  friday: IDaySchedule;
+  saturday: IDaySchedule;
+  sunday: IDaySchedule;
+}
+
+export interface ICustomDateSchedule {
+  date: string; // YYYY-MM-DD
+  isOpen: boolean;
+  openTime?: string;
+  closeTime?: string;
+  note?: string;
+}
 
 export interface IRestaurant extends Document {
   name: string;
@@ -25,6 +50,9 @@ export interface IRestaurant extends Document {
   catering: boolean;
   isOpen: boolean;
   hours: string;
+  scheduleType: ScheduleType;
+  weeklySchedule?: IWeeklySchedule;
+  customDates?: ICustomDateSchedule[];
   timeSlots: string[];
   featured: boolean;
   status: RestaurantStatus;
@@ -34,6 +62,22 @@ export interface IRestaurant extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const defaultDaySchedule: IDaySchedule = {
+  isOpen: true,
+  openTime: '11:00',
+  closeTime: '21:00',
+};
+
+export const defaultWeeklySchedule: IWeeklySchedule = {
+  monday: { ...defaultDaySchedule },
+  tuesday: { ...defaultDaySchedule },
+  wednesday: { ...defaultDaySchedule },
+  thursday: { ...defaultDaySchedule },
+  friday: { ...defaultDaySchedule },
+  saturday: { ...defaultDaySchedule },
+  sunday: { ...defaultDaySchedule },
+};
 
 const restaurantSchema = new Schema<IRestaurant>(
   {
@@ -93,6 +137,35 @@ const restaurantSchema = new Schema<IRestaurant>(
     catering: { type: Boolean, default: false },
     isOpen: { type: Boolean, default: true },
     hours: { type: String, default: '11:00 - 21:00' },
+    scheduleType: {
+      type: String,
+      enum: ['24_7', '24_5', '24_weekends', 'custom_hours', 'custom_dates'],
+      default: 'custom_hours',
+    },
+    weeklySchedule: {
+      type: {
+        monday: { isOpen: Boolean, openTime: String, closeTime: String },
+        tuesday: { isOpen: Boolean, openTime: String, closeTime: String },
+        wednesday: { isOpen: Boolean, openTime: String, closeTime: String },
+        thursday: { isOpen: Boolean, openTime: String, closeTime: String },
+        friday: { isOpen: Boolean, openTime: String, closeTime: String },
+        saturday: { isOpen: Boolean, openTime: String, closeTime: String },
+        sunday: { isOpen: Boolean, openTime: String, closeTime: String },
+      },
+      default: () => ({ ...defaultWeeklySchedule }),
+    },
+    customDates: {
+      type: [
+        {
+          date: { type: String, required: true },
+          isOpen: { type: Boolean, default: false },
+          openTime: { type: String, default: '' },
+          closeTime: { type: String, default: '' },
+          note: { type: String, default: '' },
+        },
+      ],
+      default: [],
+    },
     timeSlots: {
       type: [String],
       default: ['11:00', '12:00', '17:00', '18:00', '19:00'],

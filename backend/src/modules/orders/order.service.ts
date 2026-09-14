@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { CommissionConfig } from '../../models/commission-config.model.js';
 import { MenuItem } from '../../models/menu-item.model.js';
 import { generateNextOrderNumber } from '../../models/order-counter.model.js';
@@ -207,8 +208,12 @@ export class OrderService {
     actorUserId: string,
     actorRole: string,
     orderId: string,
-    nextStatus: OrderStatus
+    inputOrStatus: OrderStatus | { status: OrderStatus; rejectionReason?: string; note?: string }
   ): Promise<OrderResponseDto> {
+    const nextStatus = typeof inputOrStatus === 'string' ? inputOrStatus : inputOrStatus.status;
+    const rejectionReason = typeof inputOrStatus === 'object' ? inputOrStatus.rejectionReason?.trim() : undefined;
+    const note = typeof inputOrStatus === 'object' ? inputOrStatus.note?.trim() : undefined;
+
     const order = await Order.findById(orderId);
     if (!order) {
       const error = new Error('Order not found') as Error & { statusCode?: number };
@@ -244,18 +249,24 @@ export class OrderService {
 
     // Concurrency Safety: Atomic update checking current status to prevent race conditions
     const now = new Date();
-    const updatedOrder = await Order.findOneAndUpdate(
-      { _id: order._id, status: order.status },
-      {
-        $set: { status: nextStatus },
-        $push: {
-          statusHistory: {
-            status: nextStatus,
-            changedAt: now,
-            changedBy: actorUserId,
-          },
+    const updatePayload: any = {
+      $set: {
+        status: nextStatus,
+        ...(nextStatus === 'rejected' && rejectionReason ? { rejectionReason } : {}),
+      },
+      $push: {
+        statusHistory: {
+          status: nextStatus,
+          changedAt: now,
+          changedBy: actorUserId,
+          note: rejectionReason || note || '',
         },
       },
+    };
+
+    const updatedOrder = await Order.findOneAndUpdate(
+      { _id: order._id, status: order.status },
+      updatePayload,
       { new: true }
     );
 
@@ -272,18 +283,110 @@ export class OrderService {
     }
 
     // Dispatch Notification to Customer
-    const formattedStatus = nextStatus.replace(/_/g, ' ').toUpperCase();
-    await NotificationService.createNotification({
-      userId: updatedOrder.customerId,
-      role: 'CUSTOMER',
-      type: 'ORDER_STATUS',
-      title: `Order Update #${updatedOrder.orderNumber}`,
-      message: `Your order #${updatedOrder.orderNumber} status is now ${formattedStatus}.`,
-      link: `/order/${updatedOrder._id}`,
-      metadata: { orderId: updatedOrder._id.toString(), orderNumber: updatedOrder.orderNumber, status: nextStatus },
-    }).catch(() => {});
+    if (nextStatus === 'rejected') {
+      const msg = rejectionReason
+        ? `Your order #${updatedOrder.orderNumber} was rejected by the restaurant: "${rejectionReason}".`
+        : `Your order #${updatedOrder.orderNumber} could not be fulfilled at this time.`;
+
+      await NotificationService.createNotification({
+        userId: updatedOrder.customerId,
+        role: 'CUSTOMER',
+        type: 'ORDER_STATUS',
+        title: `Order Rejected #${updatedOrder.orderNumber}`,
+        message: msg,
+        link: `/order/${updatedOrder._id}`,
+        metadata: {
+          orderId: updatedOrder._id.toString(),
+          orderNumber: updatedOrder.orderNumber,
+          status: 'rejected',
+          rejectionReason,
+        },
+      }).catch(() => {});
+    } else {
+      const formattedStatus = nextStatus.replace(/_/g, ' ').toUpperCase();
+      await NotificationService.createNotification({
+        userId: updatedOrder.customerId,
+        role: 'CUSTOMER',
+        type: 'ORDER_STATUS',
+        title: `Order Update #${updatedOrder.orderNumber}`,
+        message: `Your order #${updatedOrder.orderNumber} status is now ${formattedStatus}.`,
+        link: `/order/${updatedOrder._id}`,
+        metadata: { orderId: updatedOrder._id.toString(), orderNumber: updatedOrder.orderNumber, status: nextStatus },
+      }).catch(() => {});
+    }
 
     return toOrderResponseDto(updatedOrder);
+  }
+
+  /**
+   * Adds a communication message to an order from customer or restaurant.
+   */
+  static async addOrderMessage(
+    orderId: string,
+    user: { id: string; role: string },
+    text: string
+  ): Promise<OrderResponseDto> {
+    const order = await Order.findById(orderId);
+    if (!order) {
+      const error = new Error('Order not found') as Error & { statusCode?: number };
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const isCustomer = order.customerId.toString() === user.id;
+    let isRestaurantStaff = false;
+    const restaurant = await Restaurant.findById(order.restaurantId);
+    if (restaurant && restaurant.ownerId.toString() === user.id) {
+      isRestaurantStaff = true;
+    }
+    if (user.role === 'SUPER_ADMIN') {
+      isRestaurantStaff = true;
+    }
+
+    if (!isCustomer && !isRestaurantStaff) {
+      const error = new Error('Unauthorized to send messages for this order.') as Error & { statusCode?: number };
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const sender: 'customer' | 'restaurant' = isCustomer ? 'customer' : 'restaurant';
+    const senderName = isCustomer ? order.customerName : (restaurant?.name || 'Restaurant');
+
+    const newMessage = {
+      sender,
+      senderId: new mongoose.Types.ObjectId(user.id),
+      senderName,
+      text: text.trim(),
+      sentAt: new Date(),
+    };
+
+    order.messages.push(newMessage as any);
+    await order.save();
+
+    // Dispatch notification to recipient
+    if (isCustomer) {
+      await NotificationService.createNotification({
+        restaurantId: order.restaurantId,
+        role: 'RESTAURANT_ADMIN',
+        type: 'ORDER_STATUS',
+        title: `Message on Order #${order.orderNumber}`,
+        message: `${order.customerName}: "${text.length > 60 ? text.slice(0, 57) + '...' : text}"`,
+        link: `/restaurant/dashboard?tab=orders`,
+        metadata: { orderId: order._id.toString(), orderNumber: order.orderNumber },
+      }).catch(() => {});
+    } else {
+      await NotificationService.createNotification({
+        userId: order.customerId,
+        role: 'CUSTOMER',
+        type: 'ORDER_STATUS',
+        title: `Message from ${restaurant?.name || 'Restaurant'} (#${order.orderNumber})`,
+        message: `"${text.length > 60 ? text.slice(0, 57) + '...' : text}"`,
+        link: `/order/${order._id}`,
+        metadata: { orderId: order._id.toString(), orderNumber: order.orderNumber },
+      }).catch(() => {});
+    }
+
+    return toOrderResponseDto(order);
   }
 
   /**
