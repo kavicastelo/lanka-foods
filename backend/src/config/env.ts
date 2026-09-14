@@ -37,6 +37,14 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional().default('BKNWCUTewcKXDs6IwFbNb5kWvYm-k8xMZbwW8ZebhBkoQUBiNoRBUydzyORvzUnrfFjxywsl3DgyAKDR_actEZ4'),
   VAPID_PRIVATE_KEY: z.string().optional().default('YQ95giRpiayL-inZanmQXG_5qc51jH559Qzfm9pxi7A'),
   VAPID_SUBJECT: z.string().optional().default('mailto:support@lankaeats.fi'),
+  // Wolt Drive Integration Configurations
+  WOLT_CLIENT_ID: z.string().optional().default(''),
+  WOLT_CLIENT_SECRET: z.string().optional().default(''),
+  WOLT_REDIRECT_URI: z.string().optional().default('http://localhost:4000/api/delivery/wolt/callback'),
+  WOLT_ENVIRONMENT: z.enum(['development', 'production', 'mock']).default('development'),
+  WOLT_WEBHOOK_SECRET: z.string().optional().default(''),
+  WOLT_TOKEN_ENCRYPTION_KEY: z.string().optional().default('development-wolt-32-byte-secret-key-encrypt!'),
+  WOLT_DRIVE_ENABLED: z.coerce.boolean().default(true),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

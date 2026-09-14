@@ -13,6 +13,7 @@ import { financialsApi } from "@/api/financialsApi";
 import { invoicesApi } from "@/api/invoicesApi";
 import { dashboardApi } from "@/api/dashboardApi";
 import { authApi } from "@/api/authApi";
+import { deliveryApi } from "@/api/deliveryApi";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
 
 import { isRestaurantOpenNow, getScheduleSummary } from "@/utils/schedule";
@@ -790,6 +791,109 @@ export function useMarkInvoicePaid() {
             queryClient.invalidateQueries({ queryKey: ["restaurantInvoices"] });
             queryClient.invalidateQueries({ queryKey: ["adminFinancialRecords"] });
             queryClient.invalidateQueries({ queryKey: ["dashboardMetrics"] });
+        },
+    });
+}
+
+// --- Delivery & Wolt Drive Integration Hooks ---
+
+export function useDeliverySettings(restaurantId) {
+    return useQuery({
+        queryKey: ["deliverySettings", restaurantId],
+        queryFn: async () => {
+            if (!restaurantId) return null;
+            return await deliveryApi.getDeliverySettings(restaurantId);
+        },
+        enabled: !!restaurantId,
+    });
+}
+
+export function useUpdateDeliverySettings() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} p */ async ({ restaurantId, data }) => {
+            return await deliveryApi.updateDeliverySettings(restaurantId, data);
+        },
+        onSuccess: (_data, /** @type {any} */ variables) => {
+            queryClient.invalidateQueries({ queryKey: ["deliverySettings", variables?.restaurantId] });
+            queryClient.invalidateQueries({ queryKey: ["myRestaurant"] });
+        },
+    });
+}
+
+export function useInitiateWoltConnect() {
+    return useMutation({
+        mutationFn: /** @param {any} restaurantId */ async (restaurantId) => {
+            return await deliveryApi.initiateWoltConnect(restaurantId);
+        },
+    });
+}
+
+export function useDisconnectWolt() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} restaurantId */ async (restaurantId) => {
+            return await deliveryApi.disconnectWolt(restaurantId);
+        },
+        onSuccess: (_data, /** @type {any} */ restaurantId) => {
+            queryClient.invalidateQueries({ queryKey: ["deliverySettings", restaurantId] });
+            queryClient.invalidateQueries({ queryKey: ["myRestaurant"] });
+        },
+    });
+}
+
+export function useOrderDelivery(orderId) {
+    return useQuery({
+        queryKey: ["orderDelivery", orderId],
+        queryFn: async () => {
+            if (!orderId) return null;
+            return await deliveryApi.getOrderDelivery(orderId);
+        },
+        enabled: !!orderId,
+        refetchInterval: (query) => {
+            const data = query.state.data;
+            if (data && ["DELIVERED", "CANCELLED", "FAILED"].includes(data.deliveryStatus)) {
+                return false;
+            }
+            return 10000; // Poll every 10s for active deliveries
+        },
+    });
+}
+
+export function useDispatchOrderDelivery() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} orderId */ async (orderId) => {
+            return await deliveryApi.dispatchDelivery(orderId);
+        },
+        onSuccess: (_data, /** @type {any} */ orderId) => {
+            queryClient.invalidateQueries({ queryKey: ["orderDelivery", orderId] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantOrders"] });
+            queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+            queryClient.invalidateQueries({ queryKey: ["myOrders"] });
+        },
+    });
+}
+
+export function useCancelOrderDelivery() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: /** @param {any} p */ async ({ orderId, reason }) => {
+            return await deliveryApi.cancelDelivery(orderId, reason);
+        },
+        onSuccess: (_data, /** @type {any} */ variables) => {
+            queryClient.invalidateQueries({ queryKey: ["orderDelivery", variables?.orderId] });
+            queryClient.invalidateQueries({ queryKey: ["restaurantOrders"] });
+            queryClient.invalidateQueries({ queryKey: ["order", variables?.orderId] });
+        },
+    });
+}
+
+export function useSuperAdminDeliveryOverview() {
+    return useQuery({
+        queryKey: ["adminDeliveryOverview"],
+        queryFn: async () => {
+            return await deliveryApi.getSuperAdminDeliveryOverview();
         },
     });
 }

@@ -33,6 +33,10 @@ export interface OrderResponseDto {
   customerPhone: string;
   customerEmail: string;
   deliveryType: string;
+  deliveryProvider?: string;
+  deliveryId?: string;
+  woltDeliveryCost?: number;
+  trackingUrl?: string;
   status: string;
   rejectionReason?: string;
   messages?: OrderMessageResponseDto[];
@@ -81,6 +85,10 @@ export function toOrderResponseDto(order: Partial<IOrder> & { _id: unknown }): O
     customerPhone: order.customerPhone || '',
     customerEmail: order.customerEmail || '',
     deliveryType: order.deliveryType || 'pickup',
+    deliveryProvider: order.deliveryProvider,
+    deliveryId: order.deliveryId ? order.deliveryId.toString() : undefined,
+    woltDeliveryCost: order.woltDeliveryCost,
+    trackingUrl: order.trackingUrl || '',
     status: order.status || 'received',
     rejectionReason: order.rejectionReason || '',
     messages: order.messages ? order.messages.map((m) => ({

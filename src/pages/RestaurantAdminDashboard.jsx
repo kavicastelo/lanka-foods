@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { ClipboardList, ListOrdered, UtensilsCrossed, Settings, DollarSign, Star, Plus, Trash2, Check, Clock, AlertCircle, TrendingUp, CheckCircle2, Upload, X, Pencil, Phone, MessageSquare, Calendar } from "lucide-react";
+import { ClipboardList, ListOrdered, UtensilsCrossed, Settings, DollarSign, Star, Plus, Trash2, Check, Clock, AlertCircle, TrendingUp, CheckCircle2, Upload, X, Pencil, Phone, MessageSquare, Calendar, Bike, Truck, ExternalLink, ShieldCheck, HelpCircle, Zap } from "lucide-react";
 import { DAYS_LIST, SCHEDULE_TYPE_OPTIONS, DEFAULT_WEEKLY_SCHEDULE, getScheduleSummary, isRestaurantOpenNow } from "@/utils/schedule";
 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { useQueryClient } from "@tanstack/react-query";
-import { useMyRestaurant, useRestaurantMenu, useRestaurantOrders, useRestaurantReviews, useUpdateOrderStatus, useManageMenuCategory, useManageMenuItem, useDashboardMetrics, useCommissionConfig, useRestaurantFinancials, useRestaurantInvoices, useUploadPaymentSlip } from "@/hooks/useMarketplaceData";
+import { useMyRestaurant, useRestaurantMenu, useRestaurantOrders, useRestaurantReviews, useUpdateOrderStatus, useManageMenuCategory, useManageMenuItem, useDashboardMetrics, useCommissionConfig, useRestaurantFinancials, useRestaurantInvoices, useUploadPaymentSlip, useDeliverySettings, useUpdateDeliverySettings, useInitiateWoltConnect, useDisconnectWolt, useDispatchOrderDelivery } from "@/hooks/useMarketplaceData";
 import { restaurantsApi } from "@/api/restaurantsApi";
 import { mediaApi } from "@/api/mediaApi";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -21,6 +21,7 @@ import { DEFAULT_MENU_IMAGE } from "@/lib/constants";
 const nav = [
     { id: "open", label: "Open Orders", icon: ClipboardList },
     { id: "orders", label: "All Orders", icon: ListOrdered },
+    { id: "delivery", label: "Delivery & Wolt", icon: Bike },
     { id: "menu", label: "Menu", icon: UtensilsCrossed },
     { id: "settings", label: "Restaurant Settings", icon: Settings },
     { id: "revenue", label: "Revenue & Analytics", icon: DollarSign },
@@ -51,6 +52,7 @@ export default function RestaurantAdminDashboard() {
     const titles = {
         open: ["Open orders", "Orders needing attention"],
         orders: ["All orders", `Every order for ${restaurant.name}`],
+        delivery: ["Delivery & Wolt Drive", "Configure delivery provider, pricing strategy and Wolt connection"],
         menu: ["Menu management", "Manage your categories and dishes"],
         settings: ["Restaurant settings", "Update your restaurant information"],
         revenue: ["Revenue & analytics", "Track your performance"],
@@ -61,6 +63,7 @@ export default function RestaurantAdminDashboard() {
         <DashboardLayout nav={nav} active={tab} onNavigate={setTab} title={titles[tab][0]} subtitle={titles[tab][1]}>
             {tab === "open" && <OpenOrders restaurant={restaurant} />}
             {tab === "orders" && <AllOrders restaurant={restaurant} />}
+            {tab === "delivery" && <DeliveryTab restaurant={restaurant} />}
             {tab === "menu" && <Menu restaurant={restaurant} />}
             {tab === "settings" && <SettingsTab restaurant={restaurant} />}
             {tab === "revenue" && <Revenue restaurant={restaurant} />}
@@ -85,6 +88,7 @@ function StatCard({ icon: Icon, label, value, sub }) {
 function OpenOrders({ restaurant }) {
     const { data: orders = [] } = useRestaurantOrders(restaurant.id);
     const updateStatus = useUpdateOrderStatus();
+    const dispatchDelivery = useDispatchOrderDelivery();
     const openOrders = orders.filter((o) => ["received", "accepted", "preparing", "ready", "out_for_delivery"].includes(o.status));
 
     // Order Rejection State
@@ -233,7 +237,14 @@ function OpenOrders({ restaurant }) {
                                     <div className="text-xs text-muted-foreground">{o.customer_name} · {o.scheduled_date} {o.scheduled_time}</div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-600 capitalize">{o.delivery_type}</span>
+                                    <span className={cn(
+                                        "rounded-full px-2.5 py-0.5 text-xs font-600 capitalize",
+                                        o.delivery_provider === "WOLT" || o.deliveryProvider === "WOLT"
+                                            ? "bg-sky-100 text-sky-800 border border-sky-200"
+                                            : "bg-secondary text-foreground"
+                                    )}>
+                                        {o.delivery_provider === "WOLT" || o.deliveryProvider === "WOLT" ? "Wolt Drive" : o.delivery_type}
+                                    </span>
                                     <StatusBadge status={o.status} />
                                 </div>
                             </div>
@@ -285,7 +296,36 @@ function OpenOrders({ restaurant }) {
 
                                 <div className="flex items-center gap-2">
                                     <span className="font-700 text-sm">€{(o.total || 0).toFixed(2)}</span>
-                                    <div className="flex gap-1.5">
+                                    <div className="flex gap-1.5 flex-wrap">
+                                        {(o.trackingUrl || o.tracking_url) && (
+                                            <a
+                                                href={o.trackingUrl || o.tracking_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 rounded-lg bg-sky-600/10 px-2.5 py-1 text-xs font-600 text-sky-700 hover:bg-sky-600/20 transition"
+                                                title="Track courier in real-time on Wolt"
+                                            >
+                                                <ExternalLink className="h-3 w-3" />
+                                                Track Wolt
+                                            </a>
+                                        )}
+
+                                        {o.delivery_type === "delivery" &&
+                                            !o.deliveryId &&
+                                            !o.tracking_url &&
+                                            ["accepted", "preparing", "ready"].includes(o.status) && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={dispatchDelivery.isPending}
+                                                    onClick={() => dispatchDelivery.mutate(o.id)}
+                                                    className="rounded-lg border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                                                >
+                                                    <Bike className="mr-1 h-3.5 w-3.5" />
+                                                    {dispatchDelivery.isPending ? "Dispatching…" : "Dispatch Wolt"}
+                                                </Button>
+                                            )}
+
                                         {o.status === "received" && (
                                             <>
                                                 <Button size="sm" onClick={() => updateStatus.mutate({ orderId: o.id, newStatus: "accepted" })} className="rounded-lg">Accept</Button>
@@ -293,9 +333,9 @@ function OpenOrders({ restaurant }) {
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() => {
-                                                        setRejectingOrder(o);
-                                                        setRejectReason("Kitchen at maximum capacity");
-                                                        setCustomReason("");
+                                                         setRejectingOrder(o);
+                                                         setRejectReason("Kitchen at maximum capacity");
+                                                         setCustomReason("");
                                                     }}
                                                     className="rounded-lg text-destructive"
                                                 >
@@ -1876,6 +1916,546 @@ function Field({ label, children }) {
         <div>
             <label className="text-sm font-600">{label}</label>
             <div className="mt-1.5">{children}</div>
+        </div>
+    );
+}
+
+function DeliveryTab({ restaurant }) {
+    const { data: deliveryData, isLoading, refetch } = useDeliverySettings(restaurant.id);
+    const updateSettings = useUpdateDeliverySettings();
+    const initiateConnect = useInitiateWoltConnect();
+    const disconnectWolt = useDisconnectWolt();
+
+    const settings = deliveryData?.settings;
+    const wolt = deliveryData?.woltConnection;
+
+    const [deliveryEnabled, setDeliveryEnabled] = useState(true);
+    const [deliveryProvider, setDeliveryProvider] = useState("RESTAURANT");
+    const [pricingStrategy, setPricingStrategy] = useState("FIXED");
+    const [fixedFee, setFixedFee] = useState("4.90");
+    const [markupFee, setMarkupFee] = useState("1.50");
+    const [percentageMultiplier, setPercentageMultiplier] = useState("1.15");
+    const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState("50.00");
+    const [maxDistanceKm, setMaxDistanceKm] = useState("10");
+    const [codEnabled, setCodEnabled] = useState(false);
+    const [customerFeeVisibility, setCustomerFeeVisibility] = useState(true);
+
+    const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
+    const [savedSuccess, setSavedSuccess] = useState(false);
+
+    // Synchronize local state with loaded server settings
+    React.useEffect(() => {
+        if (settings) {
+            setDeliveryEnabled(settings.deliveryEnabled ?? true);
+            setDeliveryProvider(settings.deliveryProvider || "RESTAURANT");
+            setPricingStrategy(settings.pricingStrategy || "FIXED");
+            setFixedFee(((settings.pricingParams?.fixedFee ?? 490) / 100).toFixed(2));
+            setMarkupFee(((settings.pricingParams?.markupFee ?? 150) / 100).toFixed(2));
+            setPercentageMultiplier(String(settings.pricingParams?.percentageMultiplier ?? 1.15));
+            setFreeDeliveryThreshold(((settings.pricingParams?.freeDeliveryThreshold ?? 5000) / 100).toFixed(2));
+            setMaxDistanceKm(String(settings.maxDistanceKm ?? 10));
+            setCodEnabled(settings.codEnabled ?? false);
+            setCustomerFeeVisibility(settings.customerFeeVisibility ?? true);
+        }
+    }, [settings]);
+
+    // Live Simulator Calculation (Section 79)
+    const simulatedWoltCost = 8.00;
+    const simulatedSubtotal = 35.00;
+    let simulatedCustomerFee = 0;
+    let formulaText = "";
+
+    if (pricingStrategy === "FREE") {
+        simulatedCustomerFee = 0;
+        formulaText = "Free delivery (€0.00)";
+    } else if (pricingStrategy === "FIXED") {
+        simulatedCustomerFee = parseFloat(fixedFee) || 0;
+        formulaText = `Flat fee: €${simulatedCustomerFee.toFixed(2)}`;
+    } else if (pricingStrategy === "WOLT_COST") {
+        simulatedCustomerFee = simulatedWoltCost;
+        formulaText = `Exact Wolt estimate: €${simulatedWoltCost.toFixed(2)}`;
+    } else if (pricingStrategy === "WOLT_COST_MARKUP") {
+        const markup = parseFloat(markupFee) || 0;
+        simulatedCustomerFee = +(simulatedWoltCost + markup).toFixed(2);
+        formulaText = `Wolt €${simulatedWoltCost.toFixed(2)} + Markup €${markup.toFixed(2)}`;
+    } else if (pricingStrategy === "PERCENTAGE_MARKUP") {
+        const mult = parseFloat(percentageMultiplier) || 1.0;
+        simulatedCustomerFee = +(simulatedWoltCost * mult).toFixed(2);
+        formulaText = `Wolt €${simulatedWoltCost.toFixed(2)} × ${mult}`;
+    } else if (pricingStrategy === "FREE_OVER_THRESHOLD") {
+        const thresh = parseFloat(freeDeliveryThreshold) || 50;
+        const fee = parseFloat(fixedFee) || 4.90;
+        simulatedCustomerFee = simulatedSubtotal >= thresh ? 0 : fee;
+        formulaText = simulatedSubtotal >= thresh
+            ? `Order (€${simulatedSubtotal}) >= Threshold (€${thresh}): FREE`
+            : `Order (€${simulatedSubtotal}) < Threshold (€${thresh}): €${fee.toFixed(2)}`;
+    } else if (pricingStrategy === "DISTANCE_BASED") {
+        simulatedCustomerFee = parseFloat(fixedFee) || 4.90;
+        formulaText = `Distance tier rate: €${simulatedCustomerFee.toFixed(2)}`;
+    }
+
+    const handleSave = () => {
+        updateSettings.mutate({
+            restaurantId: restaurant.id,
+            data: {
+                deliveryEnabled,
+                deliveryProvider,
+                woltEnabled: deliveryProvider === "WOLT" || (wolt?.status === "CONNECTED"),
+                pricingStrategy,
+                pricingParams: {
+                    fixedFee: Math.round((parseFloat(fixedFee) || 0) * 100),
+                    markupFee: Math.round((parseFloat(markupFee) || 0) * 100),
+                    percentageMultiplier: parseFloat(percentageMultiplier) || 1.0,
+                    freeDeliveryThreshold: Math.round((parseFloat(freeDeliveryThreshold) || 0) * 100),
+                    fallbackFee: Math.round((parseFloat(fixedFee) || 4.90) * 100),
+                },
+                maxDistanceKm: parseFloat(maxDistanceKm) || 10,
+                codEnabled,
+                customerFeeVisibility,
+            },
+        }, {
+            onSuccess: () => {
+                setSavedSuccess(true);
+                setTimeout(() => setSavedSuccess(false), 3500);
+            },
+            onError: (/** @type {any} */ err) => {
+                alert(err?.response?.data?.error || err?.message || "Failed to save delivery settings");
+            },
+        });
+    };
+
+    const handleConnectWolt = async () => {
+        try {
+            const res = await initiateConnect.mutateAsync(restaurant.id);
+            if (res?.authUrl) {
+                window.location.href = res.authUrl;
+            }
+        } catch (/** @type {any} */ err) {
+            alert(err?.response?.data?.error || err?.message || "Failed to initiate Wolt connection");
+        }
+    };
+
+    const handleConfirmDisconnect = async () => {
+        try {
+            await disconnectWolt.mutateAsync(restaurant.id);
+            setDisconnectModalOpen(false);
+            refetch();
+        } catch (/** @type {any} */ err) {
+            alert(err?.response?.data?.error || err?.message || "Failed to disconnect Wolt");
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="grid place-items-center py-20">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-800" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-4xl space-y-6">
+            {/* DISCONNECT CONFIRMATION MODAL */}
+            {disconnectModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in-50">
+                    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+                        <div className="flex items-center gap-3 text-destructive">
+                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-destructive/10">
+                                <AlertCircle className="h-5 w-5" />
+                            </div>
+                            <h3 className="font-700 text-base text-foreground">Disconnect Wolt Drive?</h3>
+                        </div>
+                        <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                            New orders will no longer be able to use Wolt Drive for fulfillment.
+                            <strong className="text-foreground block mt-1">Historical delivery records and past courier tracking URLs will remain safely intact.</strong>
+                        </p>
+                        <div className="mt-6 flex items-center justify-end gap-2 border-t border-border pt-3">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDisconnectModalOpen(false)}
+                                className="rounded-xl"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={disconnectWolt.isPending}
+                                onClick={handleConfirmDisconnect}
+                                className="rounded-xl"
+                            >
+                                {disconnectWolt.isPending ? "Disconnecting…" : "Confirm Disconnect"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* HEADER OVERVIEW BANNER */}
+            <div className="rounded-2xl border border-border bg-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sky-500/10 text-sky-600">
+                        <Bike className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <h2 className="font-display text-lg font-700">Delivery Fulfillment & Wolt Drive</h2>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                            Configure how your restaurant delivers food to customers, set pricing strategies, and manage your Wolt Drive venue link.
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setDeliveryEnabled(!deliveryEnabled)}
+                        className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                            deliveryEnabled ? "bg-primary" : "bg-secondary"
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                                deliveryEnabled ? "translate-x-5" : "translate-x-0"
+                            )}
+                        />
+                    </button>
+                    <span className="text-sm font-600">
+                        {deliveryEnabled ? "Delivery Enabled" : "Delivery Disabled"}
+                    </span>
+                </div>
+            </div>
+
+            {/* PROVIDER SELECTION */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                <div>
+                    <h3 className="font-700 text-base">Select Delivery Provider</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        Choose whether your orders are fulfilled by your own delivery staff or on-demand Wolt couriers.
+                    </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div
+                        onClick={() => setDeliveryProvider("RESTAURANT")}
+                        className={cn(
+                            "cursor-pointer rounded-2xl border p-4 transition",
+                            deliveryProvider === "RESTAURANT"
+                                ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                                : "border-border hover:border-primary/50"
+                        )}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="grid h-9 w-9 place-items-center rounded-xl bg-secondary text-foreground">
+                                    <Truck className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <div className="font-700 text-sm">Restaurant In-House Delivery</div>
+                                    <div className="text-xs text-muted-foreground">Deliver orders using your own staff</div>
+                                </div>
+                            </div>
+                            <div className={cn(
+                                "grid h-5 w-5 place-items-center rounded-full border",
+                                deliveryProvider === "RESTAURANT" ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                            )}>
+                                {deliveryProvider === "RESTAURANT" && <Check className="h-3 w-3" />}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        onClick={() => setDeliveryProvider("WOLT")}
+                        className={cn(
+                            "cursor-pointer rounded-2xl border p-4 transition",
+                            deliveryProvider === "WOLT"
+                                ? "border-sky-500 bg-sky-500/5 ring-2 ring-sky-500/20"
+                                : "border-border hover:border-sky-500/50"
+                        )}
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="grid h-9 w-9 place-items-center rounded-xl bg-sky-500/10 text-sky-600">
+                                    <Bike className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <div className="font-700 text-sm">Wolt Drive Integration</div>
+                                    <div className="text-xs text-muted-foreground">On-demand Wolt couriers dispatch</div>
+                                </div>
+                            </div>
+                            <div className={cn(
+                                "grid h-5 w-5 place-items-center rounded-full border",
+                                deliveryProvider === "WOLT" ? "border-sky-500 bg-sky-500 text-white" : "border-border"
+                            )}>
+                                {deliveryProvider === "WOLT" && <Check className="h-3 w-3" />}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* WOLT VENUE CONNECTION CARD */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-700 text-base">Wolt Drive Connection</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Connect your Wolt merchant venue to authorize dispatching couriers for your orders.
+                        </p>
+                    </div>
+                    <div>
+                        {wolt?.status === "CONNECTED" ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-700 text-emerald-700 border border-emerald-500/20">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-700 text-amber-700 border border-amber-500/20">
+                                <AlertCircle className="h-3.5 w-3.5" /> Disconnected
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {wolt?.status === "CONNECTED" ? (
+                    <div className="rounded-2xl border border-border bg-secondary/30 p-4 space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                            <div>
+                                <span className="text-muted-foreground block">Linked Venue Name:</span>
+                                <span className="font-600 text-foreground text-sm">{wolt.woltVenueName || "Wolt Merchant Venue"}</span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground block">Wolt Venue ID:</span>
+                                <span className="font-mono text-xs text-foreground bg-secondary px-2 py-0.5 rounded">{wolt.woltVenueId || "—"}</span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground block">Credentials Security:</span>
+                                <span className="font-600 text-emerald-700 flex items-center gap-1 mt-0.5">
+                                    <ShieldCheck className="h-3.5 w-3.5" /> AES-256-GCM Server-Encrypted
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground block">Last Verified:</span>
+                                <span className="text-muted-foreground">{wolt.lastSyncAt ? new Date(wolt.lastSyncAt).toLocaleString() : "Recently"}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-border">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={initiateConnect.isPending}
+                                onClick={handleConnectWolt}
+                                className="rounded-xl text-xs"
+                            >
+                                Reconnect Wolt Venue
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDisconnectModalOpen(true)}
+                                className="rounded-xl text-xs text-destructive hover:bg-destructive/10"
+                            >
+                                Disconnect Wolt
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50/50 p-6 text-center space-y-3">
+                        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-sky-100 text-sky-700">
+                            <Bike className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h4 className="font-700 text-sm">Connect Wolt Drive Integration</h4>
+                            <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
+                                Authorize your Wolt merchant venue to enable instant shipment promises and automatic courier dispatching directly from your dashboard.
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            onClick={handleConnectWolt}
+                            disabled={initiateConnect.isPending}
+                            className="rounded-full bg-sky-600 px-6 py-2 text-xs font-700 text-white hover:bg-sky-700 shadow-sm"
+                        >
+                            {initiateConnect.isPending ? "Opening Wolt…" : "Connect Wolt Drive"}
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            {/* CUSTOMER PRICING ENGINE */}
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-6">
+                <div>
+                    <h3 className="font-700 text-base">Customer Delivery Pricing Engine</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        Configure how much your customers pay for delivery. The Wolt carrier cost is separate from the customer delivery fee.
+                    </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Customer Pricing Strategy">
+                        <select
+                            value={pricingStrategy}
+                            onChange={(e) => setPricingStrategy(e.target.value)}
+                            className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                        >
+                            <option value="FIXED">Fixed Delivery Fee (Flat Rate)</option>
+                            <option value="FREE">Free Delivery for All Orders</option>
+                            <option value="WOLT_COST">Pass-through Wolt Cost (Exact Wolt Carrier Quote)</option>
+                            <option value="WOLT_COST_MARKUP">Wolt Cost + Fixed Markup</option>
+                            <option value="PERCENTAGE_MARKUP">Wolt Cost × Multiplier (Percentage)</option>
+                            <option value="FREE_OVER_THRESHOLD">Free Delivery Over Order Threshold</option>
+                            <option value="DISTANCE_BASED">Distance-Based Delivery Tiers</option>
+                        </select>
+                    </Field>
+
+                    {(pricingStrategy === "FIXED" || pricingStrategy === "FREE_OVER_THRESHOLD" || pricingStrategy === "DISTANCE_BASED") && (
+                        <Field label="Fixed Delivery Fee (€)">
+                            <input
+                                type="number"
+                                step="0.10"
+                                min="0"
+                                value={fixedFee}
+                                onChange={(e) => setFixedFee(e.target.value)}
+                                className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                            />
+                        </Field>
+                    )}
+
+                    {pricingStrategy === "WOLT_COST_MARKUP" && (
+                        <Field label="Restaurant Markup Fee (€)">
+                            <input
+                                type="number"
+                                step="0.10"
+                                min="0"
+                                value={markupFee}
+                                onChange={(e) => setMarkupFee(e.target.value)}
+                                placeholder="1.50"
+                                className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                            />
+                        </Field>
+                    )}
+
+                    {pricingStrategy === "PERCENTAGE_MARKUP" && (
+                        <Field label="Cost Multiplier (e.g. 1.15 = 15% markup)">
+                            <input
+                                type="number"
+                                step="0.05"
+                                min="1.0"
+                                value={percentageMultiplier}
+                                onChange={(e) => setPercentageMultiplier(e.target.value)}
+                                placeholder="1.15"
+                                className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                            />
+                        </Field>
+                    )}
+
+                    {pricingStrategy === "FREE_OVER_THRESHOLD" && (
+                        <Field label="Free Delivery Subtotal Threshold (€)">
+                            <input
+                                type="number"
+                                step="1.00"
+                                min="0"
+                                value={freeDeliveryThreshold}
+                                onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
+                                placeholder="50.00"
+                                className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                            />
+                        </Field>
+                    )}
+
+                    <Field label="Maximum Delivery Distance (km)">
+                        <input
+                            type="number"
+                            step="1"
+                            min="1"
+                            value={maxDistanceKm}
+                            onChange={(e) => setMaxDistanceKm(e.target.value)}
+                            placeholder="10"
+                            className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm outline-none focus:border-primary"
+                        />
+                    </Field>
+                </div>
+
+                {/* CASH ON DELIVERY OPTION */}
+                <div className="rounded-2xl border border-border bg-secondary/20 p-4 flex items-center justify-between">
+                    <div>
+                        <div className="font-700 text-sm">Cash on Delivery (COD)</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                            Allow customers to pay in cash to the courier upon delivery (where supported by Wolt).
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setCodEnabled(!codEnabled)}
+                        className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
+                            codEnabled ? "bg-primary" : "bg-secondary"
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                                codEnabled ? "translate-x-5" : "translate-x-0"
+                            )}
+                        />
+                    </button>
+                </div>
+
+                {/* LIVE SIMULATOR DISPLAY (Section 37, 38, 79) */}
+                <div className="rounded-2xl border border-border bg-secondary/40 p-5 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-700 text-primary uppercase tracking-wider">
+                        <Zap className="h-4 w-4" /> Live Pricing Preview Example
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3 text-xs">
+                        <div className="rounded-xl border border-border bg-card p-3">
+                            <span className="text-muted-foreground block">Wolt Estimated Delivery Cost:</span>
+                            <span className="text-base font-700 text-foreground">€{simulatedWoltCost.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">Wolt-side merchant estimate</span>
+                        </div>
+                        <div className="rounded-xl border border-border bg-card p-3">
+                            <span className="text-muted-foreground block">Configured Strategy Formula:</span>
+                            <span className="text-xs font-600 text-foreground block truncate mt-1">{formulaText}</span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">Based on simulated €35 order</span>
+                        </div>
+                        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                            <span className="text-primary font-600 block">Price Charged to Customer:</span>
+                            <span className="text-base font-700 text-primary">€{simulatedCustomerFee.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">Shown at customer checkout</span>
+                        </div>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-border pt-2 flex items-center gap-1.5">
+                        <HelpCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span>
+                            <strong>Non-Intermediary Money Rule:</strong> The platform does NOT collect or route delivery fees. Wolt invoices the restaurant directly, and the restaurant receives customer order payments through their own arrangement.
+                        </span>
+                    </p>
+                </div>
+
+                {/* SAVE BUTTON & NOTIFICATION */}
+                <div className="flex items-center justify-between border-t border-border pt-4">
+                    <div>
+                        {savedSuccess && (
+                            <span className="text-xs font-600 text-emerald-600 flex items-center gap-1 animate-in fade-in-50">
+                                <CheckCircle2 className="h-4 w-4" /> Delivery configuration saved successfully!
+                            </span>
+                        )}
+                    </div>
+                    <Button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={updateSettings.isPending}
+                        className="rounded-full bg-primary px-8 py-2.5 font-700 text-primary-foreground shadow-sm hover:opacity-90"
+                    >
+                        {updateSettings.isPending ? "Saving Changes…" : "Save Delivery Settings"}
+                    </Button>
+                </div>
+            </div>
         </div>
     );
 }

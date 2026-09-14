@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Check, Star, AlertCircle, Phone, ArrowLeft } from "lucide-react";
+import { Check, Star, AlertCircle, Phone, Bike, ExternalLink } from "lucide-react";
 import { useOrderById, useCreateReview } from "@/hooks/useMarketplaceData";
 import { restaurantsApi } from "@/api/restaurantsApi";
 import StarRating from "@/components/StarRating";
@@ -94,6 +94,41 @@ export default function OrderTracking() {
                     </span>
                 )}
             </div>
+
+            {/* WOLT COURIER TRACKING CARD (Section 30, 31) */}
+            {(order.deliveryProvider === "WOLT" || order.delivery_provider === "WOLT" || order.trackingUrl || order.tracking_url) && (
+                <div className="rounded-2xl border border-sky-500/20 bg-gradient-to-r from-sky-500/10 via-sky-500/5 to-transparent p-5 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-500 text-white shadow-sm">
+                                <Bike className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-700 text-sm text-foreground flex items-center gap-1.5">
+                                    Wolt Drive Delivery
+                                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-700 text-sky-800">
+                                        Active Courier
+                                    </span>
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Delivered on-demand by Wolt courier partner. Track your courier in real-time.
+                                </p>
+                            </div>
+                        </div>
+                        {(order.trackingUrl || order.tracking_url) && (
+                            <a
+                                href={order.trackingUrl || order.tracking_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2.5 text-xs font-700 text-white shadow-sm transition hover:bg-sky-700 hover:shadow"
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Track delivery on Wolt
+                            </a>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* REJECTION BANNER & TWO-WAY COMMUNICATION */}
             {isRejected ? (

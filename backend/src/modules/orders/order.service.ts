@@ -16,6 +16,7 @@ import type {
 } from './order.schemas.js';
 import { validateOrderStatusTransition } from './order.state-machine.js';
 import { NotificationService } from '../notifications/notification.service.js';
+import { DeliveryService } from '../delivery/delivery.service.js';
 
 export class OrderService {
   /**
@@ -135,7 +136,31 @@ export class OrderService {
 
     // 6. Server-authoritative Delivery Fee & Total Calculation
     const globalConfig = await CommissionConfig.findOne({ key: 'default_config' });
-    const calculatedDeliveryFee = input.deliveryType === 'delivery' ? restaurant.deliveryFee || 0 : 0;
+    let calculatedDeliveryFee = 0;
+    let quoteWoltCost = 0;
+    let activeProvider: 'NONE' | 'RESTAURANT' | 'WOLT' | 'MOCK' = 'RESTAURANT';
+
+    if (input.deliveryType === 'delivery') {
+      const dropoff = input.deliveryAddress?.trim() || `${restaurant.address}, ${restaurant.city}`;
+      const quote = await DeliveryService.calculateCheckoutDeliveryQuote(
+        restaurant._id.toString(),
+        dropoff,
+        calculatedSubtotal
+      );
+
+      if (!quote.available) {
+        const error = new Error(quote.reason || 'Delivery is currently unavailable for this address.') as Error & {
+          statusCode?: number;
+        };
+        error.statusCode = 400;
+        throw error;
+      }
+
+      calculatedDeliveryFee = quote.customerDeliveryFee;
+      quoteWoltCost = quote.woltDeliveryCost || 0;
+      activeProvider = (quote.provider as any) || 'RESTAURANT';
+    }
+
     const calculatedServiceFee = globalConfig?.serviceFee ?? 99;
     const calculatedTotal = calculatedSubtotal + calculatedDeliveryFee + calculatedServiceFee;
 
@@ -153,6 +178,8 @@ export class OrderService {
       customerPhone: user.phone || '',
       customerEmail: user.email,
       deliveryType: input.deliveryType,
+      deliveryProvider: input.deliveryType === 'delivery' ? activeProvider : undefined,
+      woltDeliveryCost: input.deliveryType === 'delivery' ? quoteWoltCost : undefined,
       status: 'received',
       subtotal: calculatedSubtotal,
       deliveryFee: calculatedDeliveryFee,
