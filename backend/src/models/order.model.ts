@@ -10,7 +10,7 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled'
   | 'rejected';
-export type PaymentMethod = 'card' | 'mobile' | 'pickup';
+export type PaymentMethod = 'card' | 'mobile' | 'pickup' | 'cash_on_delivery';
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
 
 export interface IOrderItem {
@@ -45,6 +45,10 @@ export interface IOrder extends Document {
   customerPhone: string;
   customerEmail: string;
   deliveryType: DeliveryType;
+  deliveryProvider?: 'NONE' | 'RESTAURANT' | 'WOLT' | 'MOCK';
+  deliveryId?: Types.ObjectId;
+  woltDeliveryCost?: number; // in cents (merchant cost)
+  trackingUrl?: string;
   status: OrderStatus;
   rejectionReason?: string;
   messages: IOrderMessage[];
@@ -154,6 +158,25 @@ const orderSchema = new Schema<IOrder>(
       enum: ['pickup', 'delivery'],
       required: true,
     },
+    deliveryProvider: {
+      type: String,
+      enum: ['NONE', 'RESTAURANT', 'WOLT', 'MOCK'],
+      default: undefined,
+    },
+    deliveryId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Delivery',
+      default: undefined,
+    },
+    woltDeliveryCost: {
+      type: Number,
+      default: undefined,
+      min: 0,
+    },
+    trackingUrl: {
+      type: String,
+      default: '',
+    },
     status: {
       type: String,
       enum: ['received', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'completed', 'cancelled', 'rejected'],
@@ -175,7 +198,7 @@ const orderSchema = new Schema<IOrder>(
     instructions: { type: String, default: '' },
     paymentMethod: {
       type: String,
-      enum: ['card', 'mobile', 'pickup'],
+      enum: ['card', 'mobile', 'pickup', 'cash_on_delivery'],
       default: 'pickup',
     },
     paymentStatus: {

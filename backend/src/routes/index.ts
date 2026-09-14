@@ -15,6 +15,7 @@ import { menuRoutes } from '../modules/menu/menu.routes.js';
 import { orderRoutes } from '../modules/orders/order.routes.js';
 import { restaurantRoutes } from '../modules/restaurants/restaurant.routes.js';
 import { reviewRoutes } from '../modules/reviews/review.routes.js';
+import { deliveryRoutes } from '../modules/delivery/delivery.routes.js';
 import { healthRoutes } from './health.routes.js';
 
 export async function registerRoutes(fastify: FastifyInstance) {
@@ -29,6 +30,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
   await fastify.register(categoryRoutes);
   await fastify.register(menuRoutes);
   await fastify.register(orderRoutes);
+  await fastify.register(deliveryRoutes);
   await fastify.register(reviewRoutes);
   await fastify.register(favoriteRoutes);
   await fastify.register(applicationRoutes);

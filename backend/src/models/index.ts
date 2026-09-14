@@ -12,3 +12,4 @@ export * from './commission-config.model.js';
 export * from './financial-record.model.js';
 export * from './notification.model.js';
 export * from './push-subscription.model.js';
+export * from './delivery.model.js';

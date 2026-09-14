@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { LayoutDashboard, Store, ClipboardList, Users, Star, DollarSign, Settings, TrendingUp, ShoppingBag, Check, X, Eye, Ban, RotateCcw, MessageSquare, Search, Plus } from "lucide-react";
+import { LayoutDashboard, Store, ClipboardList, Users, Star, DollarSign, Settings, TrendingUp, ShoppingBag, Check, X, Eye, Ban, RotateCcw, MessageSquare, Search, Plus, Bike, ExternalLink, ShieldCheck } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
-import { useAllRestaurants, useRestaurantApplications, useAllReviews, useCommissionConfig, useDashboardMetrics, useApproveApplication, useRejectApplication, useRequestChanges, useSetRestaurantStatus, useSetCommissionRate, useAdminFinancialRecords, useSettleFinancialRecord, useAdminUsers, useUpdateUserStatus, useDeleteReview, useAdminOrders, useAdminInvoices, useGenerateInvoice, useMarkInvoicePaid } from "@/hooks/useMarketplaceData";
+import { useAllRestaurants, useRestaurantApplications, useAllReviews, useCommissionConfig, useDashboardMetrics, useApproveApplication, useRejectApplication, useRequestChanges, useSetRestaurantStatus, useSetCommissionRate, useAdminFinancialRecords, useSettleFinancialRecord, useAdminUsers, useUpdateUserStatus, useDeleteReview, useAdminOrders, useAdminInvoices, useGenerateInvoice, useMarkInvoicePaid, useSuperAdminDeliveryOverview } from "@/hooks/useMarketplaceData";
 
 import DashboardLayout from "@/components/DashboardLayout";
 import StatusBadge from "@/components/StatusBadge";
@@ -14,6 +14,7 @@ const nav = [
     { id: "orders", label: "Orders", icon: ClipboardList },
     { id: "customers", label: "Customers", icon: Users },
     { id: "reviews", label: "Reviews", icon: Star },
+    { id: "delivery", label: "Delivery & Wolt", icon: Bike },
     { id: "revenue", label: "Revenue", icon: DollarSign },
     { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -74,6 +75,7 @@ export default function SuperAdminDashboard() {
         orders: ["All orders", "Every order across the marketplace"],
         customers: ["Customers", "Registered customers and their activity"],
         reviews: ["Reviews", "Moderate customer reviews"],
+        delivery: ["Delivery & Wolt Drive", "Carrier integration health, venues & order lifecycle"],
         revenue: ["Platform revenue", "Commission, GMV and payouts"],
         settings: ["Platform settings", "Configure commission and marketplace options"],
     };
@@ -85,6 +87,7 @@ export default function SuperAdminDashboard() {
             {tab === "orders" && <Orders orders={allOrders} restaurants={restaurants} />}
             {tab === "customers" && <Customers orders={allOrders} />}
             {tab === "reviews" && <Reviews reviews={reviews} restaurants={restaurants} />}
+            {tab === "delivery" && <AdminDeliveryTab restaurants={restaurants} />}
             {tab === "revenue" && <Revenue monthlyData={monthlyData} rows={restaurantRows} stats={stats} />}
             {tab === "settings" && <SettingsTab restaurants={restaurants} commissionRate={commissionRate} />}
             {detail && <DetailModal row={detail} onClose={() => setDetail(null)} />}
@@ -1075,4 +1078,157 @@ function Info({ label, value, full = false }) {
 
 function Mini({ label, value }) {
     return <div className="rounded-xl bg-secondary/50 p-3"><div className="text-xs text-muted-foreground">{label}</div><div className="font-display text-lg font-700">{value}</div></div>;
+}
+
+function AdminDeliveryTab({ restaurants = [] }) {
+    const { data: overview, isLoading, refetch } = useSuperAdminDeliveryOverview();
+    const stats = overview?.stats || { totalVenues: 0, activeDeliveries: 0, completedDeliveries: 0, failedDeliveries: 0, totalDeliveries: 0 };
+    const venues = overview?.venues || [];
+    const recentDeliveries = overview?.recentDeliveries || [];
+
+    return (
+        <div className="space-y-6">
+            {/* Money Boundary Platform Banner */}
+            <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-900 dark:text-blue-200">
+                <div className="flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <div className="font-700">Platform Non-Intermediary Boundary</div>
+                        <p className="text-xs mt-0.5 opacity-90">
+                            LankaEats functions strictly as software. The platform <strong>never collects, holds, settles, or routes Wolt delivery fees</strong> or customer order funds. All delivery charges are directly billed to the respective restaurant by Wolt per their commercial agreement.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Metrics */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard icon={Bike} label="Connected Wolt Venues" value={stats.totalVenues} sub="Multi-tenant venues" tone="primary" />
+                <StatCard icon={ShoppingBag} label="Active Deliveries" value={stats.activeDeliveries} sub="In transit / courier assigned" tone="warning" />
+                <StatCard icon={Check} label="Delivered" value={stats.completedDeliveries} sub="Successfully completed" tone="success" />
+                <StatCard icon={X} label="Failed / Cancelled" value={stats.failedDeliveries} sub="Needs review" tone="danger" />
+            </div>
+
+            {/* Restaurant Wolt Venues Health Table */}
+            <Card>
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="font-display text-base font-700">Wolt Drive Venue Connections</h3>
+                        <p className="text-xs text-muted-foreground">Connected merchant venues and tenant credentials health (tokens encrypted server-side)</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => refetch()} className="rounded-xl text-xs h-8">
+                        Refresh Status
+                    </Button>
+                </div>
+
+                {isLoading ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">Loading venue health...</div>
+                ) : venues.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">No restaurants have connected Wolt Drive yet.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead>
+                                <tr className="border-b border-border text-muted-foreground uppercase">
+                                    <th className="pb-3 font-600">Restaurant</th>
+                                    <th className="pb-3 font-600">Wolt Venue ID</th>
+                                    <th className="pb-3 font-600">Merchant ID</th>
+                                    <th className="pb-3 font-600">Status</th>
+                                    <th className="pb-3 font-600">Token Expiry</th>
+                                    <th className="pb-3 font-600">Last Webhook</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {venues.map((v) => {
+                                    const rName = v.restaurant?.name || restaurants.find((r) => r.id === v.restaurantId)?.name || v.restaurantId;
+                                    return (
+                                        <tr key={v._id || v.restaurantId} className="hover:bg-muted/40">
+                                            <td className="py-3 font-600">{rName}</td>
+                                            <td className="py-3 font-mono text-muted-foreground">{v.woltVenueId || "—"}</td>
+                                            <td className="py-3 font-mono text-muted-foreground">{v.woltMerchantId || "—"}</td>
+                                            <td className="py-3">
+                                                <span className={cn(
+                                                    "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-600",
+                                                    v.status === "CONNECTED" ? "bg-emerald-500/10 text-emerald-600" :
+                                                    v.status === "DISCONNECTED" ? "bg-amber-500/10 text-amber-600" :
+                                                    "bg-red-500/10 text-red-600"
+                                                )}>
+                                                    {v.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 text-muted-foreground">
+                                                {v.tokenExpiresAt ? new Date(v.tokenExpiresAt).toLocaleDateString() : "Never"}
+                                            </td>
+                                            <td className="py-3 text-muted-foreground">
+                                                {v.lastWebhookAt ? new Date(v.lastWebhookAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Card>
+
+            {/* Recent Deliveries */}
+            <Card>
+                <div className="mb-4">
+                    <h3 className="font-display text-base font-700">Recent Wolt Deliveries</h3>
+                    <p className="text-xs text-muted-foreground">Real-time status updates from Wolt Drive webhooks</p>
+                </div>
+
+                {isLoading ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">Loading deliveries...</div>
+                ) : recentDeliveries.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">No Wolt deliveries recorded yet.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead>
+                                <tr className="border-b border-border text-muted-foreground uppercase">
+                                    <th className="pb-3 font-600">Order ID</th>
+                                    <th className="pb-3 font-600">Status</th>
+                                    <th className="pb-3 font-600">Customer Fee</th>
+                                    <th className="pb-3 font-600">Wolt Cost (Ref)</th>
+                                    <th className="pb-3 font-600">Wolt Tracking</th>
+                                    <th className="pb-3 font-600">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {recentDeliveries.map((del) => (
+                                    <tr key={del._id} className="hover:bg-muted/40">
+                                        <td className="py-3 font-mono font-600">#{del.orderId?.slice(-6) || "—"}</td>
+                                        <td className="py-3">
+                                            <span className="rounded bg-secondary px-2 py-0.5 font-600 text-[11px]">
+                                                {del.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 font-600">
+                                            €{(del.pricingSnapshot?.customerDeliveryFee / 100 || 0).toFixed(2)}
+                                        </td>
+                                        <td className="py-3 text-muted-foreground">
+                                            €{(del.pricingSnapshot?.woltDeliveryCost / 100 || 0).toFixed(2)}
+                                        </td>
+                                        <td className="py-3">
+                                            {del.trackingUrl ? (
+                                                <a href={del.trackingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-600">
+                                                    Track <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </td>
+                                        <td className="py-3 text-muted-foreground">
+                                            {del.createdAt ? new Date(del.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Card>
+        </div>
+    );
 }

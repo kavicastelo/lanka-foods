@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Check, Store, Bike, Clock, CreditCard, Smartphone, Banknote, ArrowRight, ArrowLeft } from "lucide-react";
+import { Check, Store, Bike, Clock, CreditCard, Smartphone, Banknote, ArrowRight, ArrowLeft, AlertCircle } from "lucide-react";
 import { useMarketplace } from "@/context/MarketplaceContext";
 import { useMarketplaceUser } from "@/lib/marketplaceAuth";
-import { usePlaceOrder, useRestaurantById, useCommissionConfig } from "@/hooks/useMarketplaceData";
+import { usePlaceOrder, useRestaurantById, useCommissionConfig, useDeliverySettings } from "@/hooks/useMarketplaceData";
+import { deliveryApi } from "@/api/deliveryApi";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +17,9 @@ export default function Checkout() {
     const [step, setStep] = useState(0);
     const placeOrderMutation = usePlaceOrder();
 
-    // Fetch restaurant data and platform config
+    // Fetch restaurant data, delivery settings and platform config
     const { data: restaurant } = useRestaurantById(cart.restaurantId);
+    const { data: deliverySettingsData } = useDeliverySettings(cart.restaurantId);
     const { data: commissionConfig } = useCommissionConfig();
 
     const [type, setType] = useState("pickup");
@@ -26,6 +28,44 @@ export default function Checkout() {
     const [slot, setSlot] = useState("");
     const [details, setDetails] = useState({ name: user?.user?.fullName || "", phone: user?.user?.phone || user?.data?.phone || "", email: user?.user?.email || "", address: "", instructions: "" });
     const [payment, setPayment] = useState("card");
+
+    const [deliveryQuote, setDeliveryQuote] = useState(null);
+    const [quoteLoading, setQuoteLoading] = useState(false);
+    const [quoteError, setQuoteError] = useState("");
+
+    // Debounced delivery quote fetch when address is typed in delivery mode
+    useEffect(() => {
+        if (type !== "delivery" || !details.address || details.address.trim().length < 4) {
+            setDeliveryQuote(null);
+            setQuoteError("");
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setQuoteLoading(true);
+            setQuoteError("");
+            try {
+                const res = await deliveryApi.getCheckoutDeliveryQuote(
+                    cart.restaurantId,
+                    details.address,
+                    cartSubtotal
+                );
+                if (res?.available) {
+                    setDeliveryQuote(res);
+                } else {
+                    setDeliveryQuote(null);
+                    setQuoteError(res?.reason || "Delivery is unavailable for this address.");
+                }
+            } catch (err) {
+                setDeliveryQuote(null);
+                setQuoteError(err?.response?.data?.error || err?.message || "Could not retrieve delivery quote.");
+            } finally {
+                setQuoteLoading(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [type, details.address, cartSubtotal, cart.restaurantId]);
 
     if (!restaurant || cart.items.length === 0) {
         return (
@@ -36,7 +76,11 @@ export default function Checkout() {
         );
     }
 
-    const deliveryFee = type === "delivery" ? restaurant.deliveryFee : 0;
+    const deliveryFee = type === "delivery"
+        ? (deliveryQuote?.customerDeliveryFee !== undefined
+            ? deliveryQuote.customerDeliveryFee / 100
+            : (restaurant.deliveryFee || 0))
+        : 0;
     const serviceFee = commissionConfig?.serviceFee ?? 0.99;
     const total = cartSubtotal + deliveryFee + serviceFee;
 
@@ -50,7 +94,13 @@ export default function Checkout() {
     const canContinue = () => {
         if (step === 0) return !!type;
         if (step === 1) return !!when && !!slot;
-        if (step === 2) return details.name && details.phone && details.email && (type === "pickup" || details.address);
+        if (step === 2) {
+            if (!details.name || !details.phone || !details.email) return false;
+            if (type === "delivery") {
+                if (!details.address || quoteLoading || quoteError) return false;
+            }
+            return true;
+        }
         if (step === 3) return !!payment;
         return true;
     };
@@ -143,7 +193,45 @@ export default function Checkout() {
                         <Field label="Full name" value={details.name} onChange={(v) => setDetails({ ...details, name: v })} placeholder="Mika Korhonen" />
                         <Field label="Phone number" value={details.phone} onChange={(v) => setDetails({ ...details, phone: v })} placeholder="+358 40 123 4567" />
                         <Field label="Email" value={details.email} onChange={(v) => setDetails({ ...details, email: v })} placeholder="mika@email.com" type="email" full />
-                        {type === "delivery" && <Field label="Delivery address" value={details.address} onChange={(v) => setDetails({ ...details, address: v })} placeholder="Street, postal code, city" full />}
+                        {type === "delivery" && (
+                            <>
+                                <Field label="Delivery address" value={details.address} onChange={(v) => setDetails({ ...details, address: v })} placeholder="Street, postal code, city" full />
+                                {details.address && (
+                                    <div className="sm:col-span-2">
+                                        {quoteLoading ? (
+                                            <div className="flex items-center gap-2 rounded-xl bg-sky-50 border border-sky-100 p-3 text-xs text-sky-700">
+                                                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
+                                                Checking courier availability & calculating delivery fee…
+                                            </div>
+                                        ) : quoteError ? (
+                                            <div className="flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive">
+                                                <AlertCircle className="h-4 w-4 shrink-0" />
+                                                <span>{quoteError}</span>
+                                            </div>
+                                        ) : deliveryQuote ? (
+                                            <div className="flex items-center justify-between rounded-xl bg-sky-500/10 border border-sky-500/20 p-3 text-xs text-sky-900">
+                                                <div className="flex items-center gap-2">
+                                                    <Bike className="h-4 w-4 text-sky-600 shrink-0" />
+                                                    <div>
+                                                        <span className="font-700 block">
+                                                            {deliveryQuote.provider === "WOLT" ? "Wolt Drive Courier Delivery" : "Restaurant In-House Delivery"}
+                                                        </span>
+                                                        <span className="text-muted-foreground text-[11px]">
+                                                            {deliveryQuote.estimatedDeliveryMinutes
+                                                                ? `~${deliveryQuote.estimatedDeliveryMinutes} min delivery ETA`
+                                                                : "Direct to door"} · {deliveryQuote.appliedRule || "Calculated delivery price"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <span className="font-700 text-sm text-sky-900">
+                                                    {deliveryQuote.isFreeDelivery ? "FREE" : `€${(deliveryQuote.customerDeliveryFee / 100).toFixed(2)}`}
+                                                </span>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </>
+                        )}
                         <div className="sm:col-span-2">
                             <label className="text-sm font-600">Special instructions</label>
                             <textarea value={details.instructions} onChange={(e) => setDetails({ ...details, instructions: e.target.value })} rows={3} placeholder="Door code, allergies, etc." className="mt-1.5 w-full resize-none rounded-xl border border-border bg-secondary/30 p-3 text-sm outline-none focus:border-primary" />
@@ -159,6 +247,15 @@ export default function Checkout() {
                             <PayOption selected={payment === "card"} onClick={() => setPayment("card")} icon={CreditCard} title="Card" desc="Visa, Mastercard" />
                             <PayOption selected={payment === "mobile"} onClick={() => setPayment("mobile")} icon={Smartphone} title="Mobile payment" desc="MobilePay, Pivo" />
                             <PayOption selected={payment === "pickup"} onClick={() => setPayment("pickup")} icon={Banknote} title="Pay at pickup" desc="Cash or card at the restaurant" />
+                            {type === "delivery" && deliverySettingsData?.settings?.codEnabled && (
+                                <PayOption
+                                    selected={payment === "cash_on_delivery"}
+                                    onClick={() => setPayment("cash_on_delivery")}
+                                    icon={Banknote}
+                                    title="Cash on Delivery (COD)"
+                                    desc="Pay cash directly to courier upon delivery"
+                                />
+                            )}
                         </div>
                     </div>
                 )}
